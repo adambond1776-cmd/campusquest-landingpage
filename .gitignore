@@ -1,0 +1,4 @@
+node_modules
+recordings
+*.local
+.DS_Store
