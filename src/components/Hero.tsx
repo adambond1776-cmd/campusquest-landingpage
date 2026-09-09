@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { ArrowRight, Sparkles, MapPin, Calendar, Users, Trophy } from 'lucide-react';
+import { PLANS, formatPrice } from '@/lib/pricing';
 
 export default function Hero() {
   return (
@@ -28,7 +29,7 @@ export default function Hero() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-6">
               <Sparkles className="w-4 h-4 text-gold-400" />
               <span className="text-xs font-semibold tracking-wide text-white/90">
-                Pilot launching at University of Rhode Island
+                Level Up Rhode Island — pilot opening this year
               </span>
             </div>
 
@@ -47,7 +48,7 @@ export default function Hero() {
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-              <Link to="/signup" className="btn-gold">
+              <Link href="/signup" className="btn-gold">
                 Start browsing free
                 <ArrowRight className="w-4 h-4" />
               </Link>
@@ -57,7 +58,8 @@ export default function Hero() {
             </div>
 
             <p className="mt-5 text-sm text-white/50">
-              Browse free. Basic from $3/mo. Premium from $5/mo.
+              Browse free. Basic {formatPrice(PLANS.basic.price)}/mo. Premium{' '}
+              {formatPrice(PLANS.premium.price)}/mo with Genius Mining.
             </p>
           </div>
 
