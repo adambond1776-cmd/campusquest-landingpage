@@ -1,5 +1,6 @@
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
+import InterestMatcher from '@/components/interest/InterestMatcher';
 import Problem from '@/components/Problem';
 import ForStudents from '@/components/ForStudents';
 import ForOrganizations from '@/components/ForOrganizations';
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <Navbar />
       <main>
         <Hero />
+        <InterestMatcher />
         <Problem />
         <ForStudents />
         <ForOrganizations />
