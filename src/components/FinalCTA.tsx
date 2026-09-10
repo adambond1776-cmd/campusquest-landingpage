@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Compass } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function FinalCTA() {
   return (
@@ -13,8 +14,8 @@ export default function FinalCTA() {
           </div>
 
           <div className="relative">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm mb-6">
-              <Compass className="w-8 h-8 text-white" strokeWidth={2} />
+            <div className="mb-6">
+              <Logo size={64} className="mx-auto ring-2 ring-white/20" />
             </div>
 
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white text-balance max-w-2xl mx-auto">

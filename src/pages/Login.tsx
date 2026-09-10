@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Compass, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function Login() {
   return (
@@ -14,8 +15,8 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center px-5 pb-16">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-600 mb-5">
-              <Compass className="w-7 h-7" strokeWidth={2.5} />
+            <div className="mb-5">
+              <Logo size={56} className="mx-auto" />
             </div>
             <h1 className="text-3xl font-extrabold">Welcome back</h1>
             <p className="mt-3 text-white/60">

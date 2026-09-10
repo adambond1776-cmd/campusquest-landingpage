@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Compass,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -22,6 +21,7 @@ import {
   Star,
   Sparkles,
 } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 type Role = 'student' | 'organization';
 type Plan = 'free' | 'basic' | 'premium' | 'club';
@@ -130,9 +130,7 @@ export default function Onboarding() {
           Back to home
         </Link>
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-600 text-white">
-            <Compass className="w-4 h-4" strokeWidth={2.5} />
-          </div>
+          <Logo size={32} />
           <span className="font-extrabold text-base text-white">
             Campus<span className="text-brand-400">Quest</span>
           </span>
@@ -218,8 +216,8 @@ export default function Onboarding() {
 function WelcomeStep() {
   return (
     <div className="text-center py-6">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 mb-6">
-        <Compass className="w-8 h-8" strokeWidth={2.5} />
+      <div className="mb-6">
+        <Logo size={64} className="mx-auto" />
       </div>
       <h1 className="text-3xl font-extrabold">Welcome to CampusQuest</h1>
       <p className="mt-4 text-white/60 text-lg leading-relaxed max-w-md mx-auto">

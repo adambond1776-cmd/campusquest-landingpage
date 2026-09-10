@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, Compass } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -31,9 +32,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-600 text-white transition-transform group-hover:scale-105">
-              <Compass className="w-5 h-5" strokeWidth={2.5} />
-            </div>
+            <Logo size={36} className="transition-transform group-hover:scale-105" />
             <span className="font-extrabold text-xl text-ink">
               Campus<span className="text-brand-600">Quest</span>
             </span>

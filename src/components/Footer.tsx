@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Compass, Instagram, Twitter, Linkedin } from 'lucide-react';
+import { Instagram, Twitter, Linkedin } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function Footer() {
   return (
@@ -9,9 +10,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-600 text-white">
-                <Compass className="w-5 h-5" strokeWidth={2.5} />
-              </div>
+              <Logo size={36} />
               <span className="font-extrabold text-xl">
                 Campus<span className="text-brand-400">Quest</span>
               </span>
