@@ -124,14 +124,13 @@ describe('assembleProfile', () => {
 });
 
 describe('the GM-001 expectations', () => {
-  // The matching responses file does not exist yet — GM-001's pages are
-  // photographs that nobody has transcribed — so the golden test cannot run
-  // end to end. What can be checked is that the recorded finding is a shape the
-  // contract accepts, and that our D1 logic agrees it is the unresolved case.
-  it('describes the unresolved tiebreak case', () => {
-    expect(expected.d1_resolution.resolution).toBe('UNRESOLVED');
-    expect(expected.d1_resolution.computed_verb).toBeNull();
-    expect(expected.d1_resolution.candidates).toEqual(['BUILT', 'SORTED']);
+  // Corrected 12 Sept 2026 against the handwritten original: instance 5 is
+  // PERFORMED, not SORTED. BUILT wins outright. This is not a tiebreak case.
+  it('describes a clean modal D1, not the unresolved tiebreak path', () => {
+    expect(expected.d1_resolution.resolution).toBe('modal');
+    expect(expected.d1_resolution.computed_verb).toBe('BUILT');
+    expect(expected.d1_resolution.candidates).toEqual([]);
+    expect(expected._assertions.d1_resolution_must_equal).toBe('modal');
   });
 
   it('records BUILDER at MEDIUM confidence', () => {

@@ -78,10 +78,9 @@ describe('resolveD1 — tie broken by C1', () => {
 });
 
 describe('resolveD1 — UNRESOLVED', () => {
-  it('reproduces GM-001: a tie whose C1 instances carry one tied verb each', () => {
-    // BUILT x2, SORTED x2, NOTICED x1, one blank. C1 on instance 1 (BUILT) and
-    // instance 4 (SORTED). Following the paper form literally, GM-001 could not
-    // have completed D1 at all.
+  it('returns UNRESOLVED when a tie has one tied verb on each C1 instance', () => {
+    // Synthetic tally for the unresolved path. GM-001 is not this case — the
+    // handwritten original is BUILT plurality, not a BUILT/SORTED tie.
     const B = tags(
       [1, 'BUILT'],
       [2, 'SORTED'],

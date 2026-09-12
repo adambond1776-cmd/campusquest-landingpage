@@ -19,3 +19,7 @@ export * from './deidentify';
 export * from './pathways';
 export * from './signoff';
 export * from './participant-code';
+export * from './fio-types';
+export * from './fio-validate';
+export * from './fio-engine';
+export * from './cip-pathways';
