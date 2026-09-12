@@ -1,0 +1,1102 @@
+diff --git a/packages/genius-mining/assets/fio_output_contract.schema.json b/packages/genius-mining/assets/fio_output_contract.schema.json
+new file mode 100644
+index 0000000..4553da1
+--- /dev/null
++++ b/packages/genius-mining/assets/fio_output_contract.schema.json
+@@ -0,0 +1,74 @@
++{
++  "$schema": "https://json-schema.org/draft/2020-12/schema",
++  "title": "Figuring It Out Result",
++  "description": "Separate from the Genius Mining profile contract. The two are joined by participant_code and are never merged — the profile contract sets additionalProperties false and must not be loosened to accommodate FIO.",
++  "type": "object",
++  "additionalProperties": false,
++  "required": [
++    "participant_code",
++    "instrument_version",
++    "fio_engine_version",
++    "model",
++    "run_at",
++    "domains",
++    "domain_confidence",
++    "domain_evidence_thin",
++    "status"
++  ],
++  "properties": {
++    "participant_code": { "type": "string", "pattern": "^GM-[0-9]{3,}$" },
++    "instrument_version": { "type": "string" },
++    "fio_engine_version": { "type": "string" },
++    "model": { "type": "string" },
++    "run_at": { "type": "string", "format": "date-time" },
++    "working_word_ref": {
++      "type": "string",
++      "description": "primary_working_word from the Call 1 profile. Copied, never re-derived by the FIO call."
++    },
++    "domains": {
++      "type": "array",
++      "maxItems": 3,
++      "items": {
++        "type": "object",
++        "additionalProperties": false,
++        "required": ["domain_family", "raw_subject", "source_items", "weight"],
++        "properties": {
++          "domain_family": {
++            "enum": [
++              "MECHANICAL_SYSTEMS",
++              "DIGITAL_SOFTWARE",
++              "BUILT_ENVIRONMENT",
++              "LAND_ANIMALS_NATURE",
++              "HEALTH_BODY",
++              "COMMERCE_MONEY",
++              "FOOD",
++              "MEDIA_STORYTELLING",
++              "VISUAL_DESIGN",
++              "MUSIC_PERFORMANCE",
++              "LANGUAGE_TEXT",
++              "COMMUNITY_SERVICE",
++              "EDUCATION_YOUTH",
++              "SPORT_COMPETITION",
++              "LOGISTICS_OPERATIONS",
++              "SAFETY_ORDER"
++            ]
++          },
++          "raw_subject": { "type": "string", "minLength": 3 },
++          "source_items": { "type": "array", "items": { "type": "string" } },
++          "weight": { "enum": ["PRIMARY", "SECONDARY", "TRACE"] }
++        }
++      }
++    },
++    "domain_confidence": { "enum": ["HIGH", "MEDIUM", "LOW"] },
++    "domain_evidence_thin": { "type": "boolean" },
++    "thin_reason": { "type": "string" },
++    "spectator_only": { "type": "array", "items": { "type": "string" } },
++    "for_the_mentor": { "type": "string" },
++    "cip_matches": { "type": "array", "items": { "type": "object" } },
++    "status": {
++      "enum": ["draft", "returned_to_student", "edited", "accepted", "filed"]
++    },
++    "student_edits": { "type": "array", "items": { "type": "object" } }
++  }
++}
++
+diff --git a/packages/genius-mining/assets/fixtures/gm001_expected.json b/packages/genius-mining/assets/fixtures/gm001_expected.json
+index f39a30a..efe2093 100644
+--- a/packages/genius-mining/assets/fixtures/gm001_expected.json
++++ b/packages/genius-mining/assets/fixtures/gm001_expected.json
+@@ -1,6 +1,7 @@
+ {
+-  "_source": "Reconstructed from GM001_Analysis_Result.pdf, analysis session 26 August 2026.",
++  "_source": "Reconstructed from GM001_Analysis_Result.pdf, analysis session 26 August 2026. D1 resolution corrected 12 Sept 2026 against the handwritten original — see _correction_notice.",
+   "_caution": "GM-001 took instrument v1.1 (5 pages, no A4, pre-CONNECTED verb set). This fixture tests the ENGINE for regression, not the current instrument. Do not treat a pass as evidence that v1.3 is validated.",
++  "_correction_notice": "Every prior version of this file asserted d1_resolution.resolution == 'UNRESOLVED', built on a memory-reconstructed tally that put SORTED on Section B instance 5. The handwritten original shows instance 5 tagged PERFORMED, not SORTED. Real tally: BUILT x2, NOTICED x1, SORTED x1, PERFORMED x1 — BUILT is the outright plurality. D1 resolves cleanly. GM-001 does not exercise the tiebreak path and was never a valid proof case for it — that path remains untested against any real participant.",
+   "participant_code": "GM-001",
+   "instrument_version": "1.1",
+   "run_at": "2026-08-26",
+@@ -8,36 +9,33 @@
+   "confidence": "MEDIUM",
+   "secondary_pattern": {
+     "word": null,
+-    "note": "SORTED was tagged twice but only to household maintenance, and the body report on the sorting instance was 'nothing'."
++    "note": "SORTED was tagged once, to cleaning the car, and the C2 body report on that instance was 'nothing'."
+   },
+   "disagreement_with_self_tally": {
+     "value": false,
+-    "reason": "BUILDER holds, but the arithmetic is weak - only five of six verbs filled, BUILT was 2 of 5, and instances 3, 4 and 5 show crossed-out first choices. The word survives on C1 and D3, not on the tally."
++    "reason": "BUILDER holds and the arithmetic is not weak here — BUILT is the clean modal verb at 2 of 5 filled instances, with no competing verb above 1. The word is also supported independently by C1 and D3."
+   },
+   "thin_spots": [
+     "A1#6",
+     "B#6",
+-    "A2",
+     "A3",
+     "C2#4",
+     "E2",
+     "E3"
+   ],
+-  "_d1_note": "GM-001 IS THE BROKEN TIEBREAK CASE. Tally was BUILT x2, SORTED x2, NOTICED x1, one blank - a tie. C1 was instances 1 and 4: instance 1 is BUILT, instance 4 is SORTED. Both tied verbs, one each, so the form's rule does not resolve. Expected d1_resolution.resolution is UNRESOLVED with candidates [BUILT, SORTED].",
++  "_d1_note": "GM-001 is NOT a tiebreak case. Tally was BUILT x2, NOTICED x1, SORTED x1, PERFORMED x1 (instance 6 blank) — BUILT wins outright with no tie. Corrected from the prior (incorrect) memory-based reconstruction that had SORTED tied with BUILT at 2 each.",
+   "d1_resolution": {
+-    "computed_verb": null,
+-    "resolution": "UNRESOLVED",
+-    "candidates": [
+-      "BUILT",
+-      "SORTED"
+-    ],
++    "computed_verb": "BUILT",
++    "resolution": "modal",
++    "candidates": [],
+     "student_tiebreak_choice": null
+   },
+   "_assertions": {
+     "primary_working_word_must_equal": "BUILDER",
+     "confidence_must_not_be": "LOW",
+     "must_validate_against": "profile_output_contract.schema.json",
+-    "d1_resolution_must_equal": "UNRESOLVED"
++    "d1_resolution_must_equal": "modal"
+   },
+-  "_still_needed": "gm001_responses.json cannot be produced yet - the original handwritten pages exist only as photographs. Transcribe them to complete the fixture."
+-}
+\ No newline at end of file
++  "_still_needed": "None. gm001_responses.json is now transcribed from the handwritten original and ready to wire into the regression test."
++}
++
+diff --git a/packages/genius-mining/assets/fixtures/gm001_responses.json b/packages/genius-mining/assets/fixtures/gm001_responses.json
+new file mode 100644
+index 0000000..fd262fc
+--- /dev/null
++++ b/packages/genius-mining/assets/fixtures/gm001_responses.json
+@@ -0,0 +1,77 @@
++{
++  "_file": "gm001_responses.json",
++  "_purpose": "Golden test fixture input. Transcribed responses for participant GM-001, keyed by questionnaire schema field id. Paired with gm001_expected.json.",
++  "_status": "FINAL — transcribed directly from the handwritten original (photographs), 12 Sept 2026. Supersedes the provisional file and the memory-based reconstruction it was built from.",
++  "_provenance": "Transcribed directly from the five handwritten pages, Genius Mining Student Questionnaire v1.1 (Founding Cohort). Form dated by the student as Aug 24, 2026. This is now the primary source, not a reconstruction — where this file and the paper disagree, re-check the paper.",
++  "_instrument_version": "1.1",
++  "_instrument_note": "GM-001 took instrument v1.1: five pages, no A4, and the pre-CONNECTED verb set (PERSUADED was on the form but not circled). This fixture tests the ENGINE for regression. It does not validate instrument v1.3.",
++  "_pii_note": "Name removed per instrument design. No A4 on this instrument version.",
++
++  "_correction_notice": "Two changes from every prior version of this fixture, both confirmed against the original paper: (1) A1 entry 5 is 'Cleaning my car' — not a school-related entry as previously guessed; that guess was likely bleeding over from A2, which opens with the word 'School.' (2) Section B instance 5 is tagged PERFORMED, not SORTED. This changes the verb tally from a manufactured BUILT/SORTED 2-2 tie to a clean BUILT plurality (2, versus 1 each for NOTICED, SORTED, PERFORMED). D1 resolves outright. GM-001 does not exercise the tiebreak path and is not the proof case Schemas & Contracts v1.1 and Engine Spec v1.1 describe it as. See gm001_expected.json for the corrected assertion.",
++
++  "participant_code": "GM-001",
++
++  "A1": {
++    "1": "Coding a website for my uncle's business",
++    "2": "Creating a 3D print at the URI Makerspace",
++    "3": "Watching my favorite show",
++    "4": "Cleaning my room or living space",
++    "5": "Cleaning my car",
++    "6": "[LEFT BLANK BY STUDENT - row empty on the form]"
++  },
++
++  "A2": "School. Although I appreciate learning, I will not miss getting assignments in on time. I would rather use my skills learned in my career as soon as possible.",
++
++  "A3": "At my friends house playing video games. All of my closest friends.",
++
++  "B": {
++    "1": "BUILT",
++    "2": "BUILT",
++    "3": "NOTICED",
++    "4": "SORTED",
++    "5": "PERFORMED",
++    "6": null,
++    "_tally_as_submitted": "BUILT x2, NOTICED x1, SORTED x1, PERFORMED x1. Five of six instances filled; instance 6 left blank.",
++    "_row_conditions": {
++      "1": "clean",
++      "2": "clean",
++      "3": "first choice crossed out before settling",
++      "4": "first choice crossed out before settling",
++      "5": "first choice crossed out before settling",
++      "6": "left blank entirely"
++    },
++    "_verb_set": "v1.1 verb list, all eight printed. PERSUADED was present on the form but was not circled for any instance."
++  },
++
++  "C1": [4, 1],
++  "_C1_note": "Written on the form in this order: Instance 4 (cleaning the car, tagged SORTED) then Instance 1 (uncle's website, tagged BUILT).",
++
++  "C2": {
++    "4": "nothing",
++    "1": "smirk and feel happy"
++  },
++
++  "C3": {
++    "4": "listening to music, moving around and singing",
++    "1": "looked on the screen typing away"
++  },
++
++  "D1": "BUILT",
++
++  "D2": "BUILDER",
++
++  "D3": "I enjoy building and creating something new. Bringing ideas to life.",
++
++  "E1": "A1 — I do not have much time to do things I do not absolutely have to do.",
++
++  "E2": "NO",
++  "_E2_note": "Bare NO with nothing written behind it.",
++
++  "E3": "NO",
++  "_E3_note": "Bare NO, circled. Nothing on the form was new to him.",
++
++  "_before_this_is_final": [],
++
++  "_caution": "n=1, and that one participant was a motivated partner who wrote unusually rich answers. Passing this test means the engine has not regressed. It does not mean the instrument is robust."
++}
++
+diff --git a/packages/genius-mining/assets/pathways/cip.json b/packages/genius-mining/assets/pathways/cip.json
+new file mode 100644
+index 0000000..8ff94d4
+--- /dev/null
++++ b/packages/genius-mining/assets/pathways/cip.json
+@@ -0,0 +1,22 @@
++{
++  "table_id": "cip_pathways",
++  "cip_edition": "[CONFIRM current NCES CIP edition before first build]",
++  "last_verified": "[DATE]",
++  "_note": "Empty on purpose. Rows are populated from pathways/uri.json adjacent_fields, which already carries the prose version of this mapping (Mechanical Engineering, Industrial Design, Computer Science, Data Science). Adding cip_code alongside those strings is the migration path. verified:false rows may be stored but MUST NOT be shown to a student. cipCoverage() reports readyForCohort:false until the edition is pinned and every working word has 3+ verified rows across all three roads.",
++  "_example_row_shape_do_not_ship": {
++    "id": "bld-mech-01",
++    "working_words": ["BUILDER", "FIXER"],
++    "domain_families": ["MECHANICAL_SYSTEMS"],
++    "cip_code": "[CIP code]",
++    "cip_title": "[official CIP program title]",
++    "student_facing_label": "plain English. Never the code.",
++    "road": "college",
++    "typical_credential": "BS",
++    "why_this_fits": "One line connecting the working word AND the domain.",
++    "first_step": "Concrete. A department, an advisor, a program page.",
++    "verified": false,
++    "source": "[how this row was confirmed]"
++  },
++  "entries": []
++}
++
+diff --git a/packages/genius-mining/assets/prompts/fio_analysis_prompt_v1_0.txt b/packages/genius-mining/assets/prompts/fio_analysis_prompt_v1_0.txt
+new file mode 100644
+index 0000000..227157d
+--- /dev/null
++++ b/packages/genius-mining/assets/prompts/fio_analysis_prompt_v1_0.txt
+@@ -0,0 +1,73 @@
++You are extracting SUBJECT MATTER from a student's responses to a discovery
++questionnaire called Genius Mining.
++
++A separate analysis has already determined the ROLE this student plays (their
++working word). That is not your task. Do not name a role, do not infer one, and
++do not comment on one.
++
++Your task is the other half: WHAT the student was working on. The materials, the
++subjects, the settings, the kinds of problems. Where the role analysis treats
++subject matter as a decoy to be discarded, you are collecting exactly that.
++
++Analyze only what the student actually wrote. Do not infer interests they did not
++state. Do not be encouraging. If the evidence is thin, say it is thin.
++
++THE SIXTEEN DOMAIN FAMILIES:
++MECHANICAL_SYSTEMS   - engines, vehicles, machines, tools, repair of physical systems
++DIGITAL_SOFTWARE     - code, apps, websites, games, networks, digital systems
++BUILT_ENVIRONMENT    - construction, woodworking, fabrication, architecture, making objects
++LAND_ANIMALS_NATURE  - farming, animals, outdoors, plants, environment, land
++HEALTH_BODY          - care, medicine, fitness, rehabilitation, the human body
++COMMERCE_MONEY       - selling, business, trade, pricing, markets, money
++FOOD                 - cooking, baking, growing, serving, kitchens
++MEDIA_STORYTELLING   - video, writing, journalism, podcasts, narrative
++VISUAL_DESIGN        - drawing, graphics, photography, layout, aesthetics
++MUSIC_PERFORMANCE    - playing, singing, theater, dance, stage
++LANGUAGE_TEXT        - languages, editing, research, documents, argument
++COMMUNITY_SERVICE    - volunteering, advocacy, helping, civic work
++EDUCATION_YOUTH      - tutoring, coaching kids, camps, teaching settings
++SPORT_COMPETITION    - playing, training, officiating, competing, teams
++LOGISTICS_OPERATIONS - scheduling, coordinating, running events, supply, process
++SAFETY_ORDER         - security, emergency response, rules, protection of people
++
++HOW TO WEIGHT THE EVIDENCE, heaviest first:
++1. Answer C3 - the minute-to-minute description. Richest source of subject matter.
++2. The two instances they circled in C1.
++3. The full A1 list.
++4. The sentence they wrote in D3.
++5. Everything else.
++
++RULES:
++- Assign at most one domain the weight PRIMARY. PRIMARY requires support from a
++  C1-circled instance or from C3. If nothing meets that bar, assign no PRIMARY.
++- Return at most three domains.
++- raw_subject must be the student's own words, quoted, not your summary.
++- Never assign a domain because it is typical of a role. If the student did not
++  write it, it is not there.
++- Chores, obligations and passive consumption are weak evidence. A student who
++  cleaned their room has not demonstrated LOGISTICS_OPERATIONS.
++- Watching is not doing. Record spectating in spectator_only, not in domains.
++
++Return a single JSON object and nothing else. No preamble, no markdown code
++fences, no commentary before or after. Use exactly these keys:
++
++{
++  "domains": [
++    {
++      "domain_family": one of the sixteen, uppercase,
++      "raw_subject": the student's own words, quoted,
++      "source_items": array of question ids, e.g. ["A1.2","C3"],
++      "weight": "PRIMARY" or "SECONDARY" or "TRACE"
++    }
++  ],
++  "domain_confidence": "HIGH" or "MEDIUM" or "LOW",
++  "domain_evidence_thin": true or false,
++  "thin_reason": one sentence if thin, empty string if not,
++  "spectator_only": array of domain families the student only watches, empty if none,
++  "for_the_mentor": one question that would separate a real interest from a
++                    circumstantial one
++}
++
++Here are the student's responses:
++{{STUDENT_RESPONSES}}
++
+diff --git a/packages/genius-mining/src/__tests__/fio.test.ts b/packages/genius-mining/src/__tests__/fio.test.ts
+new file mode 100644
+index 0000000..9bcbf27
+--- /dev/null
++++ b/packages/genius-mining/src/__tests__/fio.test.ts
+@@ -0,0 +1,150 @@
++import { describe, expect, it, vi } from 'vitest';
++import { checkFioRules, parseFioResponse, validateFioAnalysis } from '../fio-validate';
++import { FIO_CALL_CEILING, FioOrderingError, assembleFioResult, runFioAnalysis } from '../fio-engine';
++import { cipCoverage } from '../cip-pathways';
++import type { FioAnalysisResult } from '../fio-types';
++
++/**
++ * There is deliberately NO golden test here.
++ *
++ * No validated domain run exists for any participant — GM-001 validates the
++ * working-word half only. A fixture written against a guessed expectation is
++ * worse than no fixture, because it will be trusted. These tests exercise the
++ * contract and the rules, which are knowable; they do not assert that any
++ * particular domain read is correct, which is not.
++ */
++
++const valid: FioAnalysisResult = {
++  domains: [
++    {
++      domain_family: 'DIGITAL_SOFTWARE',
++      raw_subject: "Coding a website for my uncle's business",
++      source_items: ['A1.1', 'C1', 'C3'],
++      weight: 'PRIMARY',
++    },
++  ],
++  domain_confidence: 'MEDIUM',
++  domain_evidence_thin: false,
++  thin_reason: '',
++  spectator_only: [],
++  for_the_mentor: 'Would he still choose this if nobody had asked him to?',
++};
++
++describe('FIO output contract', () => {
++  it('accepts a well-formed result', () => {
++    expect(validateFioAnalysis(valid).ok).toBe(true);
++  });
++
++  it('rejects a domain family outside the sixteen', () => {
++    const drifted = {
++      ...valid,
++      domains: [{ ...valid.domains[0], domain_family: 'ROBOTICS' }],
++    };
++    expect(validateFioAnalysis(drifted).ok).toBe(false);
++  });
++
++  it('rejects more than three domains', () => {
++    const tooMany = {
++      ...valid,
++      domains: Array.from({ length: 4 }, () => ({ ...valid.domains[0], weight: 'TRACE' as const })),
++    };
++    expect(validateFioAnalysis(tooMany).ok).toBe(false);
++  });
++
++  it('strips code fences before parsing', () => {
++    const fenced = '```json\n' + JSON.stringify(valid) + '\n```';
++    expect(parseFioResponse(fenced).ok).toBe(true);
++  });
++});
++
++describe('rules enforced in code, not documentation', () => {
++  it('allows at most one PRIMARY', () => {
++    const two = {
++      ...valid,
++      domains: [valid.domains[0], { ...valid.domains[0], domain_family: 'BUILT_ENVIRONMENT' as const }],
++    };
++    expect(checkFioRules(two)).toContainEqual(expect.stringContaining('At most one domain'));
++  });
++
++  it('requires C1 or C3 support for a PRIMARY', () => {
++    const unsupported = {
++      ...valid,
++      domains: [{ ...valid.domains[0], source_items: ['A1.1', 'D3'] }],
++    };
++    expect(checkFioRules(unsupported)).toContainEqual(expect.stringContaining('requires a C1-circled'));
++  });
++
++  it('forces LOW confidence when there is no PRIMARY', () => {
++    const noPrimary = {
++      ...valid,
++      domains: [{ ...valid.domains[0], weight: 'SECONDARY' as const }],
++      domain_confidence: 'HIGH' as const,
++    };
++    expect(checkFioRules(noPrimary)).toContainEqual(expect.stringContaining('must report domain_confidence LOW'));
++  });
++
++  it('treats A4 in source_items as a build failure', () => {
++    const leaked = {
++      ...valid,
++      domains: [{ ...valid.domains[0], source_items: ['C3', 'A4.1'] }],
++    };
++    expect(checkFioRules(leaked)).toContainEqual(expect.stringContaining('build failure'));
++  });
++
++  it('rejects output that names a working word', () => {
++    const drifted = { ...valid, for_the_mentor: 'Does BUILDER really fit him?' };
++    expect(checkFioRules(drifted)).toContainEqual(expect.stringContaining('prompt has drifted'));
++  });
++
++  it('requires a reason when evidence is flagged thin', () => {
++    const thin = { ...valid, domain_evidence_thin: true, thin_reason: '  ' };
++    expect(checkFioRules(thin)).toContainEqual(expect.stringContaining('thin_reason is empty'));
++  });
++});
++
++describe('ordering and cost', () => {
++  const responses = { participant_code: 'GM-001' } as never;
++  const d1 = { computed_verb: 'BUILT', resolution: 'modal' } as never;
++
++  it('refuses to run Call 2 before Call 1 has produced a working word', async () => {
++    const transport = vi.fn();
++    await expect(
++      runFioAnalysis(responses, d1, {} as never, transport)
++    ).rejects.toBeInstanceOf(FioOrderingError);
++    expect(transport).not.toHaveBeenCalled();
++  });
++
++  it('spends no more than the FIO call ceiling on malformed output', async () => {
++    const transport = vi.fn().mockResolvedValue('not json');
++    const profile = { primary_working_word: 'BUILDER' } as never;
++
++    const result = await runFioAnalysis(responses, d1, profile, transport);
++
++    expect(result.ok).toBe(false);
++    expect(transport).toHaveBeenCalledTimes(FIO_CALL_CEILING);
++  });
++});
++
++describe('assembly', () => {
++  it('stamps provenance and copies the working word rather than re-deriving it', () => {
++    const result = assembleFioResult({
++      participantCode: 'GM-001',
++      analysis: valid,
++      workingWordRef: 'BUILDER',
++      runAt: new Date('2026-09-12T00:00:00Z'),
++    });
++
++    expect(result.fio_engine_version).toBe('fio-1.0');
++    expect(result.working_word_ref).toBe('BUILDER');
++    expect(result.status).toBe('draft');
++  });
++});
++
++describe('CIP coverage gate', () => {
++  it('blocks a cohort while the table is empty and the edition is unpinned', () => {
++    const coverage = cipCoverage();
++    expect(coverage.readyForCohort).toBe(false);
++    expect(coverage.blocking.length).toBeGreaterThan(0);
++  });
++});
++
+diff --git a/packages/genius-mining/src/__tests__/resolve-d1.test.ts b/packages/genius-mining/src/__tests__/resolve-d1.test.ts
+index 6116d27..2240db3 100644
+--- a/packages/genius-mining/src/__tests__/resolve-d1.test.ts
++++ b/packages/genius-mining/src/__tests__/resolve-d1.test.ts
+@@ -78,10 +78,9 @@ describe('resolveD1 — tie broken by C1', () => {
+ });
+ 
+ describe('resolveD1 — UNRESOLVED', () => {
+-  it('reproduces GM-001: a tie whose C1 instances carry one tied verb each', () => {
+-    // BUILT x2, SORTED x2, NOTICED x1, one blank. C1 on instance 1 (BUILT) and
+-    // instance 4 (SORTED). Following the paper form literally, GM-001 could not
+-    // have completed D1 at all.
++  it('returns UNRESOLVED when a tie has one tied verb on each C1 instance', () => {
++    // Synthetic tally for the unresolved path. GM-001 is not this case — the
++    // handwritten original is BUILT plurality, not a BUILT/SORTED tie.
+     const B = tags(
+       [1, 'BUILT'],
+       [2, 'SORTED'],
+diff --git a/packages/genius-mining/src/__tests__/validate.test.ts b/packages/genius-mining/src/__tests__/validate.test.ts
+index 1e9f02d..c0c5900 100644
+--- a/packages/genius-mining/src/__tests__/validate.test.ts
++++ b/packages/genius-mining/src/__tests__/validate.test.ts
+@@ -124,14 +124,13 @@ describe('assembleProfile', () => {
+ });
+ 
+ describe('the GM-001 expectations', () => {
+-  // The matching responses file does not exist yet — GM-001's pages are
+-  // photographs that nobody has transcribed — so the golden test cannot run
+-  // end to end. What can be checked is that the recorded finding is a shape the
+-  // contract accepts, and that our D1 logic agrees it is the unresolved case.
+-  it('describes the unresolved tiebreak case', () => {
+-    expect(expected.d1_resolution.resolution).toBe('UNRESOLVED');
+-    expect(expected.d1_resolution.computed_verb).toBeNull();
+-    expect(expected.d1_resolution.candidates).toEqual(['BUILT', 'SORTED']);
++  // Corrected 12 Sept 2026 against the handwritten original: instance 5 is
++  // PERFORMED, not SORTED. BUILT wins outright. This is not a tiebreak case.
++  it('describes a clean modal D1, not the unresolved tiebreak path', () => {
++    expect(expected.d1_resolution.resolution).toBe('modal');
++    expect(expected.d1_resolution.computed_verb).toBe('BUILT');
++    expect(expected.d1_resolution.candidates).toEqual([]);
++    expect(expected._assertions.d1_resolution_must_equal).toBe('modal');
+   });
+ 
+   it('records BUILDER at MEDIUM confidence', () => {
+diff --git a/packages/genius-mining/src/cip-pathways.ts b/packages/genius-mining/src/cip-pathways.ts
+new file mode 100644
+index 0000000..f0f39db
+--- /dev/null
++++ b/packages/genius-mining/src/cip-pathways.ts
+@@ -0,0 +1,118 @@
++import cip from '../assets/pathways/cip.json';
++import { WORKING_WORDS } from './types';
++import type { WorkingWord } from './types';
++import type { CipMatch, CipPathwayEntry, CipPathwaySet, DomainFamily, Road } from './fio-types';
++
++/**
++ * CIP pathways answer "which field of study, anywhere." Campus pathways answer
++ * "which club, here." Same engine, different table, different buyer — which is
++ * the licensing structure the engine spec already describes, expressed in code.
++ */
++export const ROADS: Road[] = ['college', 'trade', 'work'];
++
++export const MIN_VERIFIED_CIP_PER_WORKING_WORD = 3;
++
++const TABLE = cip as unknown as CipPathwaySet;
++
++export function cipPathwaySet(): CipPathwaySet {
++  return TABLE;
++}
++
++/**
++ * Verified rows matching a working word AND a domain family.
++ *
++ * The join is on both. A row matching only the working word is the base
++ * instrument's job, not FIO's — the whole point of the second call is that the
++ * recommendation changes when the subject matter changes.
++ */
++export function verifiedCipFor(
++  workingWord: WorkingWord,
++  domainFamily: DomainFamily
++): CipPathwayEntry[] {
++  return TABLE.entries.filter(
++    (entry) =>
++      entry.verified &&
++      entry.working_words.includes(workingWord) &&
++      entry.domain_families.includes(domainFamily)
++  );
++}
++
++/** The student-facing projection. The code and the official title are stripped out. */
++export function toStudentFacing(entry: CipPathwayEntry): Omit<CipMatch, 'cip_code' | 'cip_title'> {
++  return {
++    id: entry.id,
++    student_facing_label: entry.student_facing_label,
++    road: entry.road,
++    typical_credential: entry.typical_credential,
++    why_this_fits: entry.why_this_fits,
++    first_step: entry.first_step,
++  };
++}
++
++/** The institution-facing projection. The codes are what they are paying for. */
++export function toInstitutionFacing(entry: CipPathwayEntry): CipMatch {
++  return {
++    id: entry.id,
++    cip_code: entry.cip_code,
++    cip_title: entry.cip_title,
++    student_facing_label: entry.student_facing_label,
++    road: entry.road,
++    typical_credential: entry.typical_credential,
++    why_this_fits: entry.why_this_fits,
++    first_step: entry.first_step,
++  };
++}
++
++export type CipCoverageRow = {
++  workingWord: WorkingWord;
++  verifiedCount: number;
++  roadsCovered: Road[];
++  meetsGate: boolean;
++};
++
++export type CipCoverageReport = {
++  cipEdition: string;
++  lastVerified: string;
++  rows: CipCoverageRow[];
++  /** Working words that would leave a student on an empty or college-only page. */
++  blocking: WorkingWord[];
++  readyForCohort: boolean;
++};
++
++/**
++ * The coverage gate, adapted from the campus resolver and tightened.
++ *
++ * No cohort runs until every working word has at least three verified rows AND
++ * at least one row on each of the three roads. A student who returns PROTECTOR
++ * and is shown only four-year degrees has been told something false about their
++ * options — trade and work rows are not a lesser tier, and this is the check
++ * that keeps that from being a slogan.
++ */
++export function cipCoverage(): CipCoverageReport {
++  const rows: CipCoverageRow[] = WORKING_WORDS.map((workingWord) => {
++    const entries = TABLE.entries.filter(
++      (entry) => entry.verified && entry.working_words.includes(workingWord)
++    );
++    const roadsCovered = ROADS.filter((road) => entries.some((entry) => entry.road === road));
++
++    return {
++      workingWord,
++      verifiedCount: entries.length,
++      roadsCovered,
++      meetsGate:
++        entries.length >= MIN_VERIFIED_CIP_PER_WORKING_WORD &&
++        roadsCovered.length === ROADS.length,
++    };
++  });
++
++  const blocking = rows.filter((row) => !row.meetsGate).map((row) => row.workingWord);
++
++  return {
++    cipEdition: TABLE.cip_edition,
++    lastVerified: TABLE.last_verified,
++    rows,
++    blocking,
++    readyForCohort: blocking.length === 0 && !TABLE.cip_edition.includes('CONFIRM'),
++  };
++}
++
+diff --git a/packages/genius-mining/src/fio-engine.ts b/packages/genius-mining/src/fio-engine.ts
+new file mode 100644
+index 0000000..cf530e3
+--- /dev/null
++++ b/packages/genius-mining/src/fio-engine.ts
+@@ -0,0 +1,147 @@
++import { buildAnalysisPayload } from './payload';
++import { MODEL, TEMPERATURE } from './prompts';
++import { PROMPT_TEXT } from './prompts.generated';
++import { INSTRUMENT_VERSION } from './schema';
++import { parseFioResponse, validateFioResult } from './fio-validate';
++import type { EngineTransport } from './engine';
++import type { D1Resolution, Profile, QuestionnaireResponses } from './types';
++import type { FioAnalysisResult, FioResult } from './fio-types';
++
++/**
++ * Call 2. Versioned exactly like Engine 1 and Engine 2, and selected by key
++ * rather than pasted into the call site — a prompt edit is an instrument change
++ * and gets a version.
++ */
++export const FIO_ENGINE = {
++  version: '1.0',
++  promptKey: 'fio_analysis_prompt_v1_0',
++  /** Stamped onto every FIO result as `fio_engine_version`. */
++  engineVersion: 'fio-1.0',
++} as const;
++
++/** Shorter output than Call 1 by design. More headroom invites padding. */
++export const FIO_MAX_TOKENS = 900;
++
++/**
++ * FIO is a SECOND charge, not a free rider on the base instrument.
++ *
++ * The Analysis Algorithm's two-credit-per-student ceiling covers Call 1 and its
++ * one retry. FIO gets its own budget of the same shape. This is priced into the
++ * $25 tier deliberately — deciding it here rather than discovering it on an
++ * invoice is the whole point of the constant being in the source.
++ */
++export const FIO_CALL_CEILING = 2;
++
++export class FioOrderingError extends Error {
++  constructor(message: string) {
++    super(message);
++    this.name = 'FioOrderingError';
++  }
++}
++
++export type FioRunResult =
++  | { ok: true; analysis: FioAnalysisResult; callsMade: number; attempts: { raw: string; errors: string[] }[] }
++  | { ok: false; callsMade: number; attempts: { raw: string; errors: string[] }[]; errors: string[] };
++
++function renderFioPrompt(payload: Record<string, unknown>): string {
++  const template = PROMPT_TEXT[FIO_ENGINE.promptKey];
++  if (!template) throw new Error(`No prompt registered under "${FIO_ENGINE.promptKey}".`);
++
++  const placeholder = '{{STUDENT_RESPONSES}}';
++  if (!template.includes(placeholder)) {
++    throw new Error(`FIO prompt is missing the ${placeholder} placeholder.`);
++  }
++
++  const out = template.replaceAll(placeholder, JSON.stringify(payload, null, 2));
++
++  const leftover = /\{\{([A-Z0-9_]+)\}\}/.exec(out);
++  if (leftover) {
++    throw new Error(`FIO prompt still contains an unsubstituted placeholder: {{${leftover[1]}}}.`);
++  }
++
++  return out;
++}
++
++/**
++ * Runs Call 2 against the same filtered payload Call 1 received.
++ *
++ * Call 1 must have validated first. A domain read hung off a failed working word
++ * is meaningless, and running it anyway spends a credit to produce something no
++ * advisor should be shown — so the ordering is enforced here rather than left to
++ * the caller to remember.
++ */
++export async function runFioAnalysis(
++  responses: QuestionnaireResponses,
++  d1Resolution: D1Resolution,
++  profile: Profile,
++  transport: EngineTransport
++): Promise<FioRunResult> {
++  if (!profile?.primary_working_word) {
++    throw new FioOrderingError(
++      'Call 1 must validate before Call 2 is made. No primary_working_word on the profile.'
++    );
++  }
++
++  // Same payload, same exclusions: no name, no participant metadata, no A4.
++  // Reusing the Call 1 builder rather than writing a second filter is deliberate —
++  // a second filter is a second thing to forget to update.
++  const payload = buildAnalysisPayload(responses, d1Resolution);
++  const prompt = renderFioPrompt(payload);
++
++  const attempts: { raw: string; errors: string[] }[] = [];
++
++  for (let call = 1; call <= FIO_CALL_CEILING; call += 1) {
++    const raw = await transport({
++      model: MODEL,
++      maxTokens: FIO_MAX_TOKENS,
++      temperature: TEMPERATURE,
++      prompt,
++    });
++
++    const parsed = parseFioResponse(raw);
++    if (parsed.ok) {
++      return { ok: true, analysis: parsed.value, callsMade: call, attempts };
++    }
++
++    attempts.push({ raw, errors: parsed.errors });
++  }
++
++  return {
++    ok: false,
++    callsMade: FIO_CALL_CEILING,
++    attempts,
++    errors: [
++      `FIO output failed contract validation on ${FIO_CALL_CEILING} attempts.`,
++      ...attempts.flatMap((attempt, index) =>
++        attempt.errors.map((error) => `attempt ${index + 1}: ${error}`)
++      ),
++    ],
++  };
++}
++
++export function assembleFioResult(options: {
++  participantCode: string;
++  analysis: FioAnalysisResult;
++  workingWordRef: string;
++  model?: string;
++  runAt?: Date;
++}): FioResult {
++  const result: FioResult = {
++    ...options.analysis,
++    participant_code: options.participantCode,
++    instrument_version: INSTRUMENT_VERSION,
++    fio_engine_version: FIO_ENGINE.engineVersion,
++    model: options.model ?? MODEL,
++    run_at: (options.runAt ?? new Date()).toISOString(),
++    working_word_ref: options.workingWordRef,
++    status: 'draft',
++  };
++
++  const validated = validateFioResult(result);
++  if (!validated.ok) {
++    throw new Error(`Assembled FIO result violates the output contract: ${validated.errors.join('; ')}`);
++  }
++
++  return validated.value;
++}
++
+diff --git a/packages/genius-mining/src/fio-types.ts b/packages/genius-mining/src/fio-types.ts
+new file mode 100644
+index 0000000..f01df5d
+--- /dev/null
++++ b/packages/genius-mining/src/fio-types.ts
+@@ -0,0 +1,114 @@
++/**
++ * Figuring It Out — data shapes.
++ *
++ * These mirror `assets/fio_output_contract.schema.json`. The schema file is the
++ * authority; when it disagrees with these types, the schema wins and these types
++ * are the bug. Same rule as `types.ts`.
++ *
++ * FIO is the second half of the read: Call 1 finds the ROLE, Call 2 finds the
++ * SUBJECT MATTER. They are separate calls because Analysis Prompt v1.2 discards
++ * subject matter on purpose, and FIO needs exactly what it discards.
++ */
++
++export const DOMAIN_FAMILIES = [
++  'MECHANICAL_SYSTEMS',
++  'DIGITAL_SOFTWARE',
++  'BUILT_ENVIRONMENT',
++  'LAND_ANIMALS_NATURE',
++  'HEALTH_BODY',
++  'COMMERCE_MONEY',
++  'FOOD',
++  'MEDIA_STORYTELLING',
++  'VISUAL_DESIGN',
++  'MUSIC_PERFORMANCE',
++  'LANGUAGE_TEXT',
++  'COMMUNITY_SERVICE',
++  'EDUCATION_YOUTH',
++  'SPORT_COMPETITION',
++  'LOGISTICS_OPERATIONS',
++  'SAFETY_ORDER',
++] as const;
++
++export type DomainFamily = (typeof DOMAIN_FAMILIES)[number];
++
++/**
++ * The sixteen are a join key to the CIP pathways table, not a vocabulary that
++ * can drift. A seventeenth family invalidates every FIO profile produced before
++ * it, because the join silently stops covering the same ground.
++ */
++export type DomainWeight = 'PRIMARY' | 'SECONDARY' | 'TRACE';
++
++export type DomainRead = {
++  domain_family: DomainFamily;
++  /** The student's own words, quoted. Never a summary — a mentor reads this aloud. */
++  raw_subject: string;
++  source_items: string[];
++  weight: DomainWeight;
++};
++
++/** The keys the FIO call is asked to return. Everything else is stamped by the host. */
++export type FioAnalysisResult = {
++  domains: DomainRead[];
++  domain_confidence: 'HIGH' | 'MEDIUM' | 'LOW';
++  domain_evidence_thin: boolean;
++  thin_reason: string;
++  spectator_only: string[];
++  for_the_mentor: string;
++};
++
++export type FioResult = FioAnalysisResult & {
++  participant_code: string;
++  instrument_version: string;
++  fio_engine_version: string;
++  model: string;
++  run_at: string;
++  /** Copied from the Call 1 profile. Never re-derived here. */
++  working_word_ref?: string;
++  cip_matches?: CipMatch[];
++  status: 'draft' | 'returned_to_student' | 'edited' | 'accepted' | 'filed';
++  student_edits?: Record<string, unknown>[];
++};
++
++/**
++ * One CIP pathways row.
++ *
++ * `road` is what ties this table back to the book's four roads. Every row is
++ * exactly one of college, trade or work — "figuring it out" is the state the
++ * student is in, not a destination, so it is not a road value.
++ */
++export type Road = 'college' | 'trade' | 'work';
++
++export type CipPathwayEntry = {
++  id: string;
++  working_words: string[];
++  domain_families: DomainFamily[];
++  /** Internal join key and institutional reconciliation field. Never shown to a student. */
++  cip_code: string;
++  cip_title: string;
++  student_facing_label: string;
++  road: Road;
++  typical_credential: string;
++  why_this_fits: string;
++  first_step: string;
++  verified: boolean;
++  source: string;
++};
++
++export type CipPathwaySet = {
++  table_id: string;
++  cip_edition: string;
++  last_verified: string;
++  entries: CipPathwayEntry[];
++};
++
++export type CipMatch = {
++  id: string;
++  cip_code: string;
++  cip_title: string;
++  student_facing_label: string;
++  road: Road;
++  typical_credential: string;
++  why_this_fits: string;
++  first_step: string;
++};
++
+diff --git a/packages/genius-mining/src/fio-validate.ts b/packages/genius-mining/src/fio-validate.ts
+new file mode 100644
+index 0000000..f893edb
+--- /dev/null
++++ b/packages/genius-mining/src/fio-validate.ts
+@@ -0,0 +1,145 @@
++import Ajv2020 from 'ajv/dist/2020.js';
++import type { ErrorObject, ValidateFunction } from 'ajv';
++import addFormats from 'ajv-formats';
++import contract from '../assets/fio_output_contract.schema.json';
++import { WORKING_WORDS } from './types';
++import { stripCodeFences } from './validate';
++import type { ValidationOutcome } from './validate';
++import type { FioAnalysisResult, FioResult } from './fio-types';
++
++/** The keys the FIO call is asked to return. The rest of the result is stamped by the host. */
++export const FIO_ANALYSIS_KEYS = [
++  'domains',
++  'domain_confidence',
++  'domain_evidence_thin',
++  'thin_reason',
++  'spectator_only',
++  'for_the_mentor',
++] as const;
++
++const ajv = new Ajv2020({ allErrors: true, strict: false });
++addFormats(ajv);
++
++const contractProperties = (contract as { properties: Record<string, unknown> }).properties;
++
++/**
++ * Derived from the contract rather than written out a second time, for the same
++ * reason `validate.ts` does it: two hand-maintained copies of one shape is two
++ * chances to disagree.
++ */
++const fioAnalysisSchema = {
++  type: 'object',
++  additionalProperties: false,
++  required: [...FIO_ANALYSIS_KEYS],
++  properties: Object.fromEntries(
++    FIO_ANALYSIS_KEYS.map((key) => [key, contractProperties[key]])
++  ),
++};
++
++const validateFioAnalysisFn: ValidateFunction = ajv.compile(fioAnalysisSchema);
++const validateFioResultFn: ValidateFunction = ajv.compile(contract);
++
++function formatErrors(errors: ErrorObject[] | null | undefined): string[] {
++  if (!errors?.length) return ['Unknown validation failure.'];
++  return errors.map((error) => {
++    const path = error.instancePath || '(root)';
++    return `${path} ${error.message ?? 'is invalid'}`.trim();
++  });
++}
++
++/**
++ * Rules the spec says to enforce in code rather than in documentation.
++ *
++ * These are not schema-expressible, and each one exists because of a specific
++ * way the output goes wrong:
++ *
++ *  - More than one PRIMARY, or a PRIMARY with no C1/C3 support, turns the
++ *    confidence field into decoration — every profile comes back confident.
++ *  - A4 in source_items means the payload filter failed upstream. That is a
++ *    build failure, not a finding, and it must never be rendered as one.
++ *  - A working word appearing anywhere in the FIO output means the prompt has
++ *    drifted and the two calls have started contradicting each other.
++ */
++export function checkFioRules(result: FioAnalysisResult): string[] {
++  const errors: string[] = [];
++
++  const primaries = result.domains.filter((domain) => domain.weight === 'PRIMARY');
++  if (primaries.length > 1) {
++    errors.push(`At most one domain may carry PRIMARY; got ${primaries.length}.`);
++  }
++
++  for (const primary of primaries) {
++    const supported = primary.source_items.some(
++      (item) => item === 'C1' || item === 'C3' || item.startsWith('C1.') || item.startsWith('C3.')
++    );
++    if (!supported) {
++      errors.push(
++        `PRIMARY on ${primary.domain_family} requires a C1-circled instance or C3 in source_items; got [${primary.source_items.join(', ')}].`
++      );
++    }
++  }
++
++  // Zero PRIMARY is legal, but it is not allowed to look confident.
++  if (primaries.length === 0 && result.domain_confidence !== 'LOW') {
++    errors.push('A result with no PRIMARY domain must report domain_confidence LOW.');
++  }
++
++  for (const domain of result.domains) {
++    for (const item of domain.source_items) {
++      if (item === 'A4' || item.startsWith('A4.')) {
++        errors.push(
++          `A4 appears in source_items for ${domain.domain_family}. The payload filter has failed — this is a build failure, not a finding.`
++        );
++      }
++    }
++  }
++
++  const workingWordLeak = WORKING_WORDS.find((word) =>
++    result.for_the_mentor.toUpperCase().includes(word)
++  );
++  if (workingWordLeak) {
++    errors.push(
++      `FIO output names the working word ${workingWordLeak}. The prompt has drifted; reject the response.`
++    );
++  }
++
++  if (result.domain_evidence_thin && result.thin_reason.trim().length === 0) {
++    errors.push('domain_evidence_thin is true but thin_reason is empty.');
++  }
++
++  return errors;
++}
++
++export function validateFioAnalysis(value: unknown): ValidationOutcome<FioAnalysisResult> {
++  if (!validateFioAnalysisFn(value)) {
++    return { ok: false, errors: formatErrors(validateFioAnalysisFn.errors) };
++  }
++
++  const typed = value as FioAnalysisResult;
++  const ruleErrors = checkFioRules(typed);
++  if (ruleErrors.length > 0) return { ok: false, errors: ruleErrors };
++
++  return { ok: true, value: typed };
++}
++
++export function validateFioResult(value: unknown): ValidationOutcome<FioResult> {
++  if (!validateFioResultFn(value)) {
++    return { ok: false, errors: formatErrors(validateFioResultFn.errors) };
++  }
++  return { ok: true, value: value as FioResult };
++}
++
++/** Same fence-stripping tolerance as Call 1: the instruction is not sufficient on its own. */
++export function parseFioResponse(raw: string): ValidationOutcome<FioAnalysisResult> {
++  let parsed: unknown;
++  try {
++    parsed = JSON.parse(stripCodeFences(raw));
++  } catch (error) {
++    return {
++      ok: false,
++      errors: [`FIO response is not valid JSON: ${(error as Error).message}`],
++    };
++  }
++  return validateFioAnalysis(parsed);
++}
++
+diff --git a/packages/genius-mining/src/index.ts b/packages/genius-mining/src/index.ts
+index ef0ebd0..7171c91 100644
+--- a/packages/genius-mining/src/index.ts
++++ b/packages/genius-mining/src/index.ts
+@@ -19,3 +19,7 @@ export * from './deidentify';
+ export * from './pathways';
+ export * from './signoff';
+ export * from './participant-code';
++export * from './fio-types';
++export * from './fio-validate';
++export * from './fio-engine';
++export * from './cip-pathways';
+diff --git a/packages/genius-mining/src/prompts.generated.ts b/packages/genius-mining/src/prompts.generated.ts
+index 19e0aa6..934398d 100644
+--- a/packages/genius-mining/src/prompts.generated.ts
++++ b/packages/genius-mining/src/prompts.generated.ts
+@@ -4,5 +4,6 @@
+ 
+ export const PROMPT_TEXT: Record<string, string> = {
+   "analysis_prompt_v1_2_json": "You are analyzing a student's responses to a discovery questionnaire called Genius Mining.\n\nThe questionnaire separates the DOMAIN a student operates in (basketball, theater, chemistry) from the ROLE they play inside it (teaching, building, organizing). The role is what we are looking for. The domain is a decoy.\n\nAnalyze only what the student actually wrote. Do not infer personality traits. Do not be encouraging. If the evidence is thin, say it is thin.\n\nTHE EIGHT CANDIDATE WORKING WORDS:\nTEACHER - makes it make sense to someone else\nBUILDER - makes the thing exist that did not exist\nPERFORMER - makes a room feel something\nORGANIZER - makes the mess into an order\nCONNECTOR - makes the introduction that changes things\nANALYST - finds what is actually going on underneath\nFIXER - finds the broken part and repairs it\nPROTECTOR - notices who is being left out or harmed and steps in\n\nHOW TO WEIGHT THE EVIDENCE, heaviest first:\n1. Answer C3 - what their hands, eyes, and mouth were doing minute to minute.\n2. The two instances they circled in C1.\n3. The sentence they wrote in D3.\n4. The verb tally in Section B.\n5. Everything else.\n\nThe student's own self-tally in D1 and D2 may be wrong. If your reading disagrees with theirs, say so plainly and explain which of their answers points elsewhere.\n\nReturn a single JSON object and nothing else. No preamble, no markdown code fences, no commentary before or after. Use exactly these keys:\n\n{\n  \"primary_working_word\": one of the eight words, uppercase,\n  \"evidence\": two to three sentences quoting the student's own phrasing,\n  \"secondary_pattern\": { \"word\": one of the eight words or null, \"note\": one sentence },\n  \"disagreement_with_self_tally\": { \"value\": true or false, \"reason\": why, naming which of their answers points elsewhere },\n  \"body_signal_read\": what C2 confirms or complicates, one line,\n  \"confidence\": \"HIGH\" or \"MEDIUM\" or \"LOW\",\n  \"thin_spots\": array of question ids that were too sparse to use, e.g. [\"C2\",\"E2\"], empty array if none,\n  \"for_the_mentor\": one counter-example question to pressure-test this pattern\n}\n\nHere are the student's responses:\n{{STUDENT_RESPONSES}}\n",
++  "fio_analysis_prompt_v1_0": "You are extracting SUBJECT MATTER from a student's responses to a discovery\nquestionnaire called Genius Mining.\n\nA separate analysis has already determined the ROLE this student plays (their\nworking word). That is not your task. Do not name a role, do not infer one, and\ndo not comment on one.\n\nYour task is the other half: WHAT the student was working on. The materials, the\nsubjects, the settings, the kinds of problems. Where the role analysis treats\nsubject matter as a decoy to be discarded, you are collecting exactly that.\n\nAnalyze only what the student actually wrote. Do not infer interests they did not\nstate. Do not be encouraging. If the evidence is thin, say it is thin.\n\nTHE SIXTEEN DOMAIN FAMILIES:\nMECHANICAL_SYSTEMS   - engines, vehicles, machines, tools, repair of physical systems\nDIGITAL_SOFTWARE     - code, apps, websites, games, networks, digital systems\nBUILT_ENVIRONMENT    - construction, woodworking, fabrication, architecture, making objects\nLAND_ANIMALS_NATURE  - farming, animals, outdoors, plants, environment, land\nHEALTH_BODY          - care, medicine, fitness, rehabilitation, the human body\nCOMMERCE_MONEY       - selling, business, trade, pricing, markets, money\nFOOD                 - cooking, baking, growing, serving, kitchens\nMEDIA_STORYTELLING   - video, writing, journalism, podcasts, narrative\nVISUAL_DESIGN        - drawing, graphics, photography, layout, aesthetics\nMUSIC_PERFORMANCE    - playing, singing, theater, dance, stage\nLANGUAGE_TEXT        - languages, editing, research, documents, argument\nCOMMUNITY_SERVICE    - volunteering, advocacy, helping, civic work\nEDUCATION_YOUTH      - tutoring, coaching kids, camps, teaching settings\nSPORT_COMPETITION    - playing, training, officiating, competing, teams\nLOGISTICS_OPERATIONS - scheduling, coordinating, running events, supply, process\nSAFETY_ORDER         - security, emergency response, rules, protection of people\n\nHOW TO WEIGHT THE EVIDENCE, heaviest first:\n1. Answer C3 - the minute-to-minute description. Richest source of subject matter.\n2. The two instances they circled in C1.\n3. The full A1 list.\n4. The sentence they wrote in D3.\n5. Everything else.\n\nRULES:\n- Assign at most one domain the weight PRIMARY. PRIMARY requires support from a\n  C1-circled instance or from C3. If nothing meets that bar, assign no PRIMARY.\n- Return at most three domains.\n- raw_subject must be the student's own words, quoted, not your summary.\n- Never assign a domain because it is typical of a role. If the student did not\n  write it, it is not there.\n- Chores, obligations and passive consumption are weak evidence. A student who\n  cleaned their room has not demonstrated LOGISTICS_OPERATIONS.\n- Watching is not doing. Record spectating in spectator_only, not in domains.\n\nReturn a single JSON object and nothing else. No preamble, no markdown code\nfences, no commentary before or after. Use exactly these keys:\n\n{\n  \"domains\": [\n    {\n      \"domain_family\": one of the sixteen, uppercase,\n      \"raw_subject\": the student's own words, quoted,\n      \"source_items\": array of question ids, e.g. [\"A1.2\",\"C3\"],\n      \"weight\": \"PRIMARY\" or \"SECONDARY\" or \"TRACE\"\n    }\n  ],\n  \"domain_confidence\": \"HIGH\" or \"MEDIUM\" or \"LOW\",\n  \"domain_evidence_thin\": true or false,\n  \"thin_reason\": one sentence if thin, empty string if not,\n  \"spectator_only\": array of domain families the student only watches, empty if none,\n  \"for_the_mentor\": one question that would separate a real interest from a\n                    circumstantial one\n}\n\nHere are the student's responses:\n{{STUDENT_RESPONSES}}\n\n",
+   "recommendations_prompt_v1_0": "You are generating campus activity recommendations for a student who has completed the Genius Mining questionnaire.\n\nYou are the SECOND of two engines. The first engine already analyzed the student's written responses and determined their working word. Your job is different: take that working word, take the outdoor/movement/competitive interests the student listed, and connect them to real things on this campus.\n\nYou do not see the student's name, their body-signal answers, or anything they wrote about what they have never said out loud. You see a role, a set of interests, and a list of real campus activities. That is deliberate.\n\nWHAT YOU ARE GIVEN:\n- WORKING WORD: the role the student plays, from the first engine.\n- THEIR SENTENCE: the student's own words about what that role means to them.\n- INTERESTS: things that get them outside, moving, or competing. Each is tagged with whether they DO it or WATCH it, whether they are usually ALONE, with a FEW FRIENDS, or in a CROWD, and whether it is INDOORS or OUTSIDE.\n- CAMPUS ACTIVITIES: real, verified activities available to this student, each with a name, a location, what it is, and which working words it suits.\n\nHOW TO CHOOSE:\nPick three to five activities from the CAMPUS ACTIVITIES list. Do not invent activities. Do not recommend anything not on the list.\n\nWeight your choices this way, heaviest first:\n1. Activities that match the working word directly — the student would be doing the thing they already do.\n2. Activities that match a stated interest AND the working word together.\n3. Activities that fill a gap visible in what the student wrote — if every interest they listed is solitary, one recommendation should involve other people.\n\nRespect the social tags. A student whose interests are all ALONE should not have five group activities pushed at them. Give them a way in that does not require walking into a room cold — note when an activity has a low-commitment entry point.\n\nTHE CROSS-OVER:\nBeyond the listed activities, find one thing nobody has connected for this student yet. Take their working word and take one of their interests, and name the specific thing that sits where those two overlap. Not a category — a concrete thing they could start.\n\nFor example, a student whose working word is BUILDER and who watches basketball in a crowd: nobody has suggested they build something for the team. A stat tracker. A game-day bot. A highlight pipeline. The interest is not the recommendation and the role is not the recommendation — the join is.\n\nThis should be something they could plausibly begin this month. If the two inputs genuinely do not join, say so rather than forcing it.\n\nTONE:\nWrite to the student directly, as \"you.\" Be concrete and specific. Reference what they actually wrote. Do not be effusive, do not flatter, and do not tell them what kind of person they are — the first engine already did the analysis, and you are pointing at doors.\n\nNever claim an activity is a match for their personality. It is a match for what they already do.\n\nReturn a single JSON object and nothing else. No preamble, no markdown code fences.\n\n{\n  \"recommendations\": [\n    {\n      \"activity_id\": the id from CAMPUS ACTIVITIES, exactly as given,\n      \"why_this_fits\": one or two sentences, second person, referencing what they wrote,\n      \"first_step\": the concrete thing they do to start - a room, a link, a meeting, a person\n    }\n  ],\n  \"cross_over\": {\n    \"found\": true or false,\n    \"headline\": short phrase naming the thing, or null if found is false,\n    \"body\": two to four sentences naming the working word and the interest it joins, and what they could actually start. Null if found is false.,\n    \"interest_used\": the interest from their list that this draws on, or null\n  },\n  \"gap_noted\": one sentence naming a pattern in what they listed that a recommendation is deliberately addressing, or null if there is none\n}\n\nWORKING WORD:\n{{WORKING_WORD}}\n\nTHEIR SENTENCE:\n{{D3_SENTENCE}}\n\nINTERESTS:\n{{A4_ENTRIES}}\n\nCAMPUS ACTIVITIES:\n{{PATHWAYS}}\n",
+ };
