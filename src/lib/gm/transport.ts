@@ -18,22 +18,34 @@ export const MOCK_MODEL = 'mock-engine';
  * The brief's snippet omits the auth and version headers; the API rejects the
  * call without them.
  */
+export const ANTHROPIC_TIMEOUT_MS = 60_000;
+
 export function anthropicTransport(apiKey: string): EngineTransport {
   return async (request: EngineRequest): Promise<string> => {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: request.model,
-        max_tokens: request.maxTokens,
-        temperature: request.temperature,
-        messages: [{ role: 'user', content: request.prompt }],
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: request.model,
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+          messages: [{ role: 'user', content: request.prompt }],
+        }),
+        signal: AbortSignal.timeout(ANTHROPIC_TIMEOUT_MS),
+      });
+    } catch (error) {
+      const name = (error as Error).name;
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        throw new Error('The analysis timed out before it finished.');
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       const detail = await response.text();

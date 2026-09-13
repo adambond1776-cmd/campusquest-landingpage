@@ -3,15 +3,28 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Menu, X, Compass } from 'lucide-react';
+import LogoutButton from '@/components/LogoutButton';
+import { getCurrentUser, type CurrentUser } from '@/lib/auth';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getCurrentUser().then((resolved) => {
+      if (active) setUser(resolved);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Absolute hrefs on the section anchors so the nav still works from a route
@@ -59,15 +72,29 @@ export default function Navbar() {
 
           {/* Desktop CTAs */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-semibold text-ink/80 hover:text-brand-600 transition-colors px-4 py-2"
-            >
-              Log in
-            </Link>
-            <Link href="/signup" className="btn-primary">
-              Get the app
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/settings"
+                  className="text-sm font-semibold text-ink/80 hover:text-brand-600 transition-colors px-4 py-2"
+                >
+                  Account
+                </Link>
+                <LogoutButton className="text-sm font-semibold text-ink/80 hover:text-brand-600 transition-colors px-4 py-2" />
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-semibold text-ink/80 hover:text-brand-600 transition-colors px-4 py-2"
+                >
+                  Log in
+                </Link>
+                <Link href="/signup" className="btn-primary">
+                  Get the app
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile toggle */}
@@ -96,20 +123,35 @@ export default function Navbar() {
                 </Link>
               ))}
               <div className="flex flex-col gap-3 mt-4 px-2">
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="btn-secondary w-full"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  onClick={() => setOpen(false)}
-                  className="btn-primary w-full"
-                >
-                  Get the app
-                </Link>
+                {user ? (
+                  <>
+                    <Link
+                      href="/settings"
+                      onClick={() => setOpen(false)}
+                      className="btn-secondary w-full"
+                    >
+                      Account
+                    </Link>
+                    <LogoutButton className="btn-primary w-full" />
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setOpen(false)}
+                      className="btn-secondary w-full"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/signup"
+                      onClick={() => setOpen(false)}
+                      className="btn-primary w-full"
+                    >
+                      Get the app
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Check, Sparkles, User, Star, Building2, ArrowRight, Lock } from 'lucide-react';
 import {
+  CHECKOUT_LIVE,
   INSTITUTIONAL_SEAT_PRICE,
   INTRO_NOTICE_COPY,
   PLANS,
@@ -130,10 +131,22 @@ export default function Pricing() {
                   ))}
                 </ul>
 
-                <Link href="/signup" className={`w-full ${highlight ? 'btn-gold' : 'btn-primary'}`}>
-                  {plan.cta}
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {plan.price === 0 || CHECKOUT_LIVE ? (
+                  <Link href="/signup" className={`w-full ${highlight ? 'btn-gold' : 'btn-primary'}`}>
+                    {plan.cta}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                ) : (
+                  <span
+                    className={`inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold ${
+                      highlight
+                        ? 'border-white/20 text-white/80'
+                        : 'border-cream-300 text-ink/60'
+                    }`}
+                  >
+                    Coming soon
+                  </span>
+                )}
               </div>
             );
           })}
@@ -189,10 +202,16 @@ export default function Pricing() {
 
                 <p className="text-sm text-white/60 mb-6 max-w-md">{club.tagline}</p>
 
-                <Link href="/signup" className="btn-gold">
-                  {club.cta}
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {CHECKOUT_LIVE ? (
+                  <Link href="/signup" className="btn-gold">
+                    {club.cta}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-3 text-sm font-semibold text-white/80">
+                    Coming soon
+                  </span>
+                )}
               </div>
 
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">

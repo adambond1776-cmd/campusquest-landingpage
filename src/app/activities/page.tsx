@@ -10,7 +10,7 @@ import { getActivityStore } from '@/lib/activities/store';
 import { upcomingHomeGames } from '@/lib/activities/sources/athletics';
 import { PUBLIC_STATUSES, type Activity } from '@/lib/activities/types';
 import { formatWhen } from '@/lib/activities/format';
-import { campusName } from '@/lib/campuses';
+import { campusDirectoryLive, campusName } from '@/lib/campuses';
 import { defaultCampusId } from '@/lib/env';
 import { gate } from '@/lib/gate';
 import { privacyEmail } from '@/lib/legal';
@@ -198,13 +198,20 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: S
                 <CalendarX className="w-7 h-7" />
               </div>
               <h2 className="mt-5 text-xl font-extrabold text-ink">
-                Nothing here for {campusName(campusId)} yet
+                {campusDirectoryLive(campusId)
+                  ? `Nothing here for ${campusName(campusId)} yet`
+                  : `${campusName(campusId)} is coming soon`}
               </h2>
               <p className="mt-2 max-w-md mx-auto text-slate-600 leading-relaxed">
-                The directory fills from the university calendar, the organization directory, and
-                the athletics schedule. Once the first sync runs for this campus, everything
-                happening will show up here.
+                {campusDirectoryLive(campusId)
+                  ? 'The directory fills from the university calendar, the organization directory, and the athletics schedule. Once the first sync runs for this campus, everything happening will show up here.'
+                  : 'CampusQuest is piloting at the University of Rhode Island first. Other Rhode Island schools stay on this list so students can ask them to cover Genius Mining, but the activity directory is not live there yet.'}
               </p>
+              {!campusDirectoryLive(campusId) ? (
+                <Link href="/activities" className="btn-secondary mt-6">
+                  See URI listings
+                </Link>
+              ) : null}
             </div>
           ) : (
             <>

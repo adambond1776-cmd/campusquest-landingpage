@@ -118,6 +118,7 @@ export default function AskYourSchool({ initialCounts }: { initialCounts: Record
             {CAMPUSES.map((campus) => (
               <option key={campus.id} value={campus.id} className="bg-brand-950">
                 {campus.name}
+              {campus.id !== 'other' && !campus.directoryLive ? ' (Coming soon)' : ''}
               </option>
             ))}
           </select>

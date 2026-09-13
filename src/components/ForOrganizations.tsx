@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { PLANS, formatPrice } from '@/lib/pricing';
 import {
   Globe,
@@ -8,7 +7,6 @@ import {
   Ticket,
   MessageSquare,
   BarChart3,
-  ArrowRight,
 } from 'lucide-react';
 
 const features = [
@@ -94,12 +92,8 @@ export default function ForOrganizations() {
         </div>
 
         <div className="mt-12 flex flex-col sm:flex-row items-center gap-4 justify-center">
-          <Link href="/signup" className="btn-gold">
-            Claim your club page — {formatPrice(PLANS.club.price)}/month
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <span className="text-sm text-white/50">
-            Set up in minutes. Cancel anytime.
+          <span className="inline-flex items-center justify-center rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white/80">
+            Club pages coming soon — {formatPrice(PLANS.club.price)}/month
           </span>
         </div>
       </div>

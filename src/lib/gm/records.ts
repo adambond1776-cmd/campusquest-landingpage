@@ -95,7 +95,7 @@ export function newRecord(options: {
     profile: null,
     ledger: initialAnalysisLedger(),
     retention: initialRetentionState(),
-    subscription: options.subscription ?? { tier: 'premium', status: 'active' },
+    subscription: options.subscription ?? { tier: 'free', status: 'none' },
     coverage: null,
     admin_grant: null,
     created_at: now,

@@ -1,9 +1,10 @@
 /**
  * Server-side configuration.
  *
- * Everything here is read lazily and nothing throws at import time, so the app
- * boots and is clickable with no environment set at all. Features degrade to a
- * local mock instead of crashing — see `isMockEngine` and `alertsConfigured`.
+ * Values are read lazily and nothing throws at import time. In development,
+ * missing credentials degrade to local mocks so `npm run dev` stays clickable.
+ * Production must fail closed instead — see `assertProductionPersistence` and
+ * the auth/email guards.
  */
 
 function str(name: string): string | undefined {
@@ -84,6 +85,23 @@ export function supabaseServiceRoleKey(): string | undefined {
 
 export function supabaseConfigured(): boolean {
   return Boolean(supabaseUrl() && supabaseAnonKey());
+}
+
+/** True when the service-role client can persist real student data. */
+export function persistConfigured(): boolean {
+  return Boolean(supabaseUrl() && supabaseServiceRoleKey());
+}
+
+/**
+ * Production must not write student or directory data to the local temp dir.
+ * Development and tests may still use the file-backed stores.
+ */
+export function assertProductionPersistence(label: string): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (persistConfigured()) return;
+  throw new Error(
+    `${label} is unavailable because production storage is not configured.`
+  );
 }
 
 export function stripeWebhookSecret(): string | undefined {

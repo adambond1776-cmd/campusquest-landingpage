@@ -8,11 +8,13 @@ import {
   verifiedPathwaysFor,
 } from '@hiddengeniuslabs/genius-mining';
 import AcceptProfile from '@/components/gm/AcceptProfile';
+import AgeLocked from '@/components/gm/AgeLocked';
 import GmHeader from '@/components/gm/GmHeader';
 import RunAnalysis from '@/components/gm/RunAnalysis';
 import StudentProfile from '@/components/gm/StudentProfile';
 import RulesStep from '@/components/book/RulesStep';
 import { isMockEngine } from '@/lib/env';
+import { requireGeniusMiningAccess } from '@/lib/gate';
 import { loadCurrentRecord } from '@/lib/gm/load';
 
 export const metadata: Metadata = {
@@ -22,6 +24,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function ProfilePage() {
+  const access = await requireGeniusMiningAccess();
+  if (!access.allowed) return <AgeLocked reason={access.reason} />;
+
   const record = await loadCurrentRecord();
 
   if (!record?.consent) redirect('/genius-mining');

@@ -8,8 +8,10 @@ import {
   type GuardianConsent,
 } from '@/lib/age';
 import { sendGuardianRequest, sendOperatorAlert } from '@/lib/alerts';
+import { alertsConfigured } from '@/lib/env';
 import { PRIVACY_VERSION, TERMS_VERSION, legalEntity } from '@/lib/legal';
-import { siteUrl } from '@/lib/site';
+import { isProductionRuntime } from '@/lib/runtime';
+import { LOCAL_DEV_ORIGIN, publicOrigin } from '@/lib/site';
 
 export type AgeResult =
   | { ok: true; bracket: 'adult' }
@@ -43,9 +45,11 @@ export async function recordAge(input: {
   }
 
   const store = ageStore();
-  await store.attest(email, input.birthYear);
 
-  if (bracket === 'adult') return { ok: true, bracket: 'adult' };
+  if (bracket === 'adult') {
+    await store.attest(email, input.birthYear);
+    return { ok: true, bracket: 'adult' };
+  }
 
   const guardianName = input.guardianName?.trim() ?? '';
   const guardianEmail = input.guardianEmail?.trim().toLowerCase() ?? '';
@@ -60,6 +64,25 @@ export async function recordAge(input: {
       message: 'The guardian address has to be different from your own.',
     };
   }
+
+  if (isProductionRuntime() && !alertsConfigured()) {
+    return {
+      ok: false,
+      message:
+        'We could not email a parent or guardian right now. Please try again in a few minutes.',
+    };
+  }
+
+  const origin = publicOrigin() ?? (isProductionRuntime() ? undefined : LOCAL_DEV_ORIGIN);
+  if (!origin) {
+    return {
+      ok: false,
+      message:
+        'We could not email a parent or guardian right now. Please try again in a few minutes.',
+    };
+  }
+
+  await store.attest(email, input.birthYear);
 
   const { token, hash, expiresAt } = createConsentToken();
 
@@ -81,13 +104,11 @@ export async function recordAge(input: {
     guardianEmail,
     guardianName,
     studentEmail: email,
-    confirmUrl: `${siteUrl}/guardian/confirm?token=${token}`,
+    confirmUrl: `${origin}/guardian/confirm?token=${token}`,
     operator: legalEntity() ?? 'CampusQuest',
   });
 
   if (!delivery.delivered) {
-    // The student is now waiting on an email that never arrived, and they have
-    // no way to tell. Someone has to send it by hand.
     await sendOperatorAlert({
       severity: 'action_required',
       subject: 'A guardian consent email did not send',
@@ -100,6 +121,14 @@ export async function recordAge(input: {
         'contact the student.',
       ].join('\n'),
     });
+
+    if (isProductionRuntime()) {
+      return {
+        ok: false,
+        message:
+          'We could not email that parent or guardian. Check the address and try again, or wait a few minutes.',
+      };
+    }
   }
 
   return { ok: true, bracket: 'minor', guardianEmailed: delivery.delivered };

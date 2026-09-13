@@ -37,7 +37,7 @@ import AgeFields, {
 } from '@/components/signup/AgeFields';
 import { recordAge } from '@/app/signup/age-actions';
 import { completeOnboarding, signUpWithEmail, type Plan, type Role } from '@/lib/auth';
-import { PLANS, PRICE_LOCK_COPY, STUDENT_PLANS, formatPrice } from '@/lib/pricing';
+import { CHECKOUT_LIVE, PLANS, PRICE_LOCK_COPY, STUDENT_PLANS, formatPrice } from '@/lib/pricing';
 import { validateEmail } from '@/lib/validation';
 
 const interestOptions = [
@@ -92,7 +92,7 @@ export default function Onboarding({
   const [step, setStep] = useState(finishing ? 1 : 0);
   const [role, setRole] = useState<Role | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plan, setPlan] = useState<Plan | null>('free');
   const [email, setEmail] = useState('');
   const [age, setAge] = useState<AgeAnswer>(EMPTY_AGE);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string }>({});
@@ -110,6 +110,8 @@ export default function Onboarding({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting || !role || !plan) return;
+
+    const billedPlan = !CHECKOUT_LIVE && role === 'student' ? 'free' : plan;
 
     const address = finishing ? sessionEmail : email;
 
@@ -145,7 +147,7 @@ export default function Onboarding({
     }
 
     if (finishing) {
-      const result = await completeOnboarding({ role, interests, plan });
+      const result = await completeOnboarding({ role, interests, plan: billedPlan });
       if (!result.ok) {
         setFormError(result.message);
         setSubmitting(false);
@@ -156,7 +158,7 @@ export default function Onboarding({
       return;
     }
 
-    const result = await signUpWithEmail({ email, role, interests, plan });
+    const result = await signUpWithEmail({ email, role, interests, plan: billedPlan });
 
     if (!result.ok) {
       setFormError(result.message);
@@ -212,6 +214,7 @@ export default function Onboarding({
   };
 
   const handlePlanSelect = (p: Plan) => {
+    if (!CHECKOUT_LIVE && p !== 'free') return;
     setPlan(p);
   };
 
@@ -433,12 +436,12 @@ function RoleStep({
           <div className="flex items-start gap-3">
             <Star className="w-5 h-5 text-gold-400 shrink-0 mt-0.5" />
             <p className="text-sm text-white/70">
-              Organization accounts include a full club page with event
+              Organization accounts will include a full club page with event
               management, ticketing, templates, and analytics for{' '}
               <span className="font-bold text-gold-400">
                 {formatPrice(PLANS.club.price)}/month
               </span>
-              .
+              . Checkout is not live yet — you can still create an account.
             </p>
           </div>
         </div>
@@ -548,8 +551,10 @@ function AccountStep({
       <h2 className="text-2xl font-extrabold text-center">{heading}</h2>
       <p className="mt-2 text-sm text-white/50 text-center">
         {isOrg
-          ? `${formatPrice(PLANS.club.price)}/month — full club page with everything you need.`
-          : 'Start free. Upgrade anytime.'}
+          ? 'Club tools are coming soon. Create an account now — checkout is not live yet.'
+          : CHECKOUT_LIVE
+            ? 'Start free. Upgrade anytime.'
+            : 'Start free. Paid plans are listed below and coming soon.'}
       </p>
 
       {/* Plan selection (students only).
@@ -560,17 +565,27 @@ function AccountStep({
         <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {planOptions.map((p) => {
             const selected = plan === p.id;
+            const purchaseBlocked = !CHECKOUT_LIVE && p.id !== 'free';
             return (
               <button
                 key={p.id}
+                type="button"
                 onClick={() => onPlanSelect(p.id)}
+                disabled={purchaseBlocked}
                 className={`relative rounded-xl border p-4 text-left transition-all duration-200 sm:text-center ${
-                  selected
-                    ? 'bg-brand-600 border-brand-500 shadow-soft'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  purchaseBlocked
+                    ? 'cursor-not-allowed bg-white/[0.03] border-white/10 opacity-70'
+                    : selected
+                      ? 'bg-brand-600 border-brand-500 shadow-soft'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                 }`}
               >
-                {p.badge && (
+                {purchaseBlocked && (
+                  <span className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-white/15 text-white/80 text-[9px] font-bold uppercase tracking-wide whitespace-nowrap sm:left-1/2 sm:-translate-x-1/2">
+                    Coming soon
+                  </span>
+                )}
+                {!purchaseBlocked && p.badge && (
                   <span className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-gold-500 text-brand-950 text-[9px] font-bold uppercase tracking-wide whitespace-nowrap sm:left-1/2 sm:-translate-x-1/2">
                     {p.badge}
                   </span>
@@ -605,7 +620,9 @@ function AccountStep({
         </div>
       )}
 
-      {!isOrg && <p className="mt-3 text-center text-xs leading-relaxed text-white/40">{PRICE_LOCK_COPY}</p>}
+      {!isOrg && CHECKOUT_LIVE && (
+        <p className="mt-3 text-center text-xs leading-relaxed text-white/40">{PRICE_LOCK_COPY}</p>
+      )}
 
       {/* Org plan summary */}
       {isOrg && (
@@ -620,8 +637,7 @@ function AccountStep({
             </div>
           </div>
           <span className="text-lg font-extrabold text-gold-400">
-            {formatPrice(PLANS.club.price)}
-            <span className="text-sm font-normal">/mo</span>
+            Coming soon
           </span>
         </div>
       )}

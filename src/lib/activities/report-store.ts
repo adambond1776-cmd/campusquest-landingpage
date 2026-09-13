@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
+import { assertProductionPersistence, supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
 import type { ActivityReport, ReportStatus } from '@/lib/activities/reports';
 
 export type ReportStore = {
@@ -215,6 +215,8 @@ export function resetReportStoreForTesting(): void {
 
 export function getReportStore(): ReportStore {
   if (cached) return cached;
+
+  assertProductionPersistence('Directory reports');
 
   const url = supabaseUrl();
   const serviceKey = supabaseServiceRoleKey();

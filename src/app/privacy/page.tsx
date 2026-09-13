@@ -32,7 +32,7 @@ export default function PrivacyPage() {
     >
       <h2 id="short-version">The short version</h2>
       <p>
-        CampusQuest stores your email address, the campus you chose, and the activities you save.
+        CampusQuest stores your email address, the plan you picked, and the activities you save.
         That is enough to sign you in and show you a list that remembers what you liked. We do not
         sell student data, we do not rent it, and no advertiser buys access to who you are.
       </p>
@@ -71,7 +71,8 @@ export default function PrivacyPage() {
           password to store and nothing for us to leak.
         </li>
         <li>
-          <strong>Your campus.</strong> Chosen from a list. It decides which activities you see.
+          <strong>The activities you save, and the listings you report.</strong> So the
+          directory can remember what you liked and so we can correct what is wrong.
         </li>
         <li>
           <strong>Your plan, and whether it is paid for.</strong> Including whether a school is

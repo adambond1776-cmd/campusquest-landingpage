@@ -1,5 +1,7 @@
 import { signedInUser } from '@/lib/session';
-import { gate } from '@/lib/gate';
+import { requireGeniusMiningAccess } from '@/lib/gate';
+import { loadCurrentRecord } from '@/lib/gm/load';
+import { resolveEntitlement } from '@hiddengeniuslabs/genius-mining';
 import WelcomeView, { type GeniusMiningAccess } from './welcome-view';
 
 /**
@@ -9,10 +11,23 @@ import WelcomeView, { type GeniusMiningAccess } from './welcome-view';
  * something they are not allowed to reach at any price would be a worse thing
  * to do than saying nothing.
  */
-async function geniusMiningAccess(plan: string | undefined): Promise<GeniusMiningAccess> {
-  const access = await gate('genius_mining');
+async function geniusMiningAccess(): Promise<GeniusMiningAccess> {
+  const access = await requireGeniusMiningAccess();
   if (!access.allowed) return { state: 'hidden' };
-  return plan === 'premium' ? { state: 'ready' } : { state: 'upgrade' };
+
+  const record = await loadCurrentRecord();
+  if (
+    record &&
+    resolveEntitlement({
+      subscription: record.subscription,
+      coverage: record.coverage,
+      grant: record.admin_grant,
+    }).geniusMining
+  ) {
+    return { state: 'ready' };
+  }
+
+  return { state: 'upgrade' };
 }
 
 export default async function WelcomePage({
@@ -31,7 +46,7 @@ export default async function WelcomePage({
     <WelcomeView
       isNew={flag === '1'}
       initialUser={user}
-      geniusMining={await geniusMiningAccess(user?.plan)}
+      geniusMining={await geniusMiningAccess()}
     />
   );
 }

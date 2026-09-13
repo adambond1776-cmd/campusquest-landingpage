@@ -8,7 +8,7 @@ import {
   parseParticipantCode,
   type CorpusRecord,
 } from '@hiddengeniuslabs/genius-mining';
-import { supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
+import { assertProductionPersistence, supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
 import { newRecord, type GeniusMiningRecord } from '@/lib/gm/records';
 
 export type Store = {
@@ -259,6 +259,8 @@ export function resetStoreForTesting(): void {
  */
 export function getStore(): Store {
   if (cached) return cached;
+
+  assertProductionPersistence('Genius Mining');
 
   const url = supabaseUrl();
   const serviceKey = supabaseServiceRoleKey();

@@ -11,10 +11,12 @@ export type Campus = {
   name: string;
   /** Short name for tight spaces and chart labels. */
   short: string;
+  /** Directory feeds are live for this campus. */
+  directoryLive?: boolean;
 };
 
 export const CAMPUSES: Campus[] = [
-  { id: 'uri', name: 'University of Rhode Island', short: 'URI' },
+  { id: 'uri', name: 'University of Rhode Island', short: 'URI', directoryLive: true },
   { id: 'jwu', name: 'Johnson & Wales University', short: 'JWU' },
   { id: 'salve', name: 'Salve Regina University', short: 'Salve Regina' },
   { id: 'ric', name: 'Rhode Island College', short: 'RIC' },
@@ -34,6 +36,10 @@ export function campusById(id: string): Campus | undefined {
 
 export function campusName(id: string): string {
   return campusById(id)?.name ?? id;
+}
+
+export function campusDirectoryLive(id: string): boolean {
+  return campusById(id)?.directoryLive === true;
 }
 
 /**

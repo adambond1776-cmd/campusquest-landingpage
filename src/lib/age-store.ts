@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
+import { assertProductionPersistence, supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
 import { bracketForBirthYear, type AgeRecord, type GuardianConsent } from '@/lib/age';
 
 /**
@@ -212,6 +212,7 @@ let cached: AgeStore | null = null;
 
 export function ageStore(): AgeStore {
   if (cached) return cached;
+  assertProductionPersistence('Age and guardian records');
   const url = supabaseUrl();
   const key = supabaseServiceRoleKey();
   cached =

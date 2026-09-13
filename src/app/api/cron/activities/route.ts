@@ -7,15 +7,21 @@ export const dynamic = 'force-dynamic';
 /**
  * Refresh the activity directory from every configured source.
  *
- * Unlike the retention job this only writes public listings, so it is allowed
- * to run without a secret in local development where no secret is configured.
- * Once CRON_SECRET exists it is enforced, because an open endpoint that makes a
- * few hundred outbound requests is a free denial-of-service lever.
+ * Auth matches the retention job: no secret configured is a 503, a wrong
+ * bearer token is a 401. An open endpoint that makes a few hundred outbound
+ * requests is a free denial-of-service lever.
  */
 async function handle(request: Request): Promise<Response> {
   const secret = cronSecret();
 
-  if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret) {
+    return NextResponse.json(
+      { error: 'CRON_SECRET is not configured; the activities job will not run.' },
+      { status: 503 }
+    );
+  }
+
+  if (request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 

@@ -5,6 +5,7 @@ import { CalendarCheck, Mail, ShieldCheck } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DeleteAccount from '@/components/settings/DeleteAccount';
+import LogoutButton from '@/components/LogoutButton';
 import { ageStore } from '@/lib/age-store';
 import { guardianConsentActive } from '@/lib/age';
 import { signedInUser } from '@/lib/session';
@@ -80,6 +81,10 @@ export default async function SettingsPage() {
                   and a person will do it. Editing these in place is not built yet.
                 </p>
               </section>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <LogoutButton className="btn-secondary w-full sm:w-auto" />
+              </div>
 
               <div className="mt-6">
                 <DeleteAccount />

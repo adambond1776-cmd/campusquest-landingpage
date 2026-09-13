@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
+import { assertProductionPersistence, supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
 
 /**
  * Students asking their school to pay for Genius Mining.
@@ -160,6 +160,8 @@ export function resetDemandStoreForTesting(): void {
 
 export function getDemandStore(): DemandStore {
   if (cached) return cached;
+
+  assertProductionPersistence('Campus demand');
 
   const url = supabaseUrl();
   const serviceKey = supabaseServiceRoleKey();

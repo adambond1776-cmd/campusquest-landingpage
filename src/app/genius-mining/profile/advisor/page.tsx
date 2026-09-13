@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { pathwaySet } from '@hiddengeniuslabs/genius-mining';
 import AdvisorPrintout from '@/components/gm/AdvisorPrintout';
+import AgeLocked from '@/components/gm/AgeLocked';
 import PrintBar from '@/components/gm/PrintBar';
+import { requireGeniusMiningAccess } from '@/lib/gate';
 import { loadCurrentRecord } from '@/lib/gm/load';
 
 export const metadata: Metadata = {
@@ -13,6 +15,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function AdvisorPage() {
+  const access = await requireGeniusMiningAccess();
+  if (!access.allowed) return <AgeLocked reason={access.reason} />;
+
   const record = await loadCurrentRecord();
 
   if (!record?.consent) redirect('/genius-mining');

@@ -1,5 +1,6 @@
 'use client';
 
+import { AUTH_UNCONFIGURED_MESSAGE, isProductionRuntime } from '@/lib/runtime';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export type Role = 'student' | 'organization';
@@ -198,12 +199,21 @@ function readMockSession(): CurrentUser | null {
  * Emails a one-time login link. There is no password to check, so a link is
  * sent whether or not the address is already on file.
  */
+function mockAuthOrFail(
+  run: () => Promise<AuthResult>
+): Promise<AuthResult> {
+  if (isProductionRuntime()) {
+    return Promise.resolve({ ok: false, message: AUTH_UNCONFIGURED_MESSAGE });
+  }
+  return run();
+}
+
 export async function signInWithEmail({
   email,
   redirectTo = SIGN_IN_REDIRECT,
 }: SignInInput): Promise<AuthResult> {
   const supabase = createClient();
-  if (!supabase) return mockSendLink(email);
+  if (!supabase) return mockAuthOrFail(() => mockSendLink(email));
 
   const { error } = await supabase.auth.signInWithOtp({
     email: normalizeEmail(email),
@@ -225,7 +235,9 @@ export async function signUpWithEmail({
   plan,
 }: SignUpInput): Promise<AuthResult> {
   const supabase = createClient();
-  if (!supabase) return mockSendLink(email, { role, interests, plan });
+  if (!supabase) {
+    return mockAuthOrFail(() => mockSendLink(email, { role, interests, plan }));
+  }
 
   const { error } = await supabase.auth.signInWithOtp({
     email: normalizeEmail(email),
@@ -249,7 +261,12 @@ export async function signUpWithEmail({
  */
 export async function completeOnboarding(details: OnboardingInput): Promise<OnboardingResult> {
   const supabase = createClient();
-  if (!supabase) return mockCompleteOnboarding(details);
+  if (!supabase) {
+    if (isProductionRuntime()) {
+      return { ok: false, message: AUTH_UNCONFIGURED_MESSAGE };
+    }
+    return mockCompleteOnboarding(details);
+  }
 
   const { error } = await supabase.auth.updateUser({ data: { ...details } });
   if (error) return { ok: false, message: error.message };
@@ -258,7 +275,10 @@ export async function completeOnboarding(details: OnboardingInput): Promise<Onbo
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const supabase = createClient();
-  if (!supabase) return readMockSession();
+  if (!supabase) {
+    if (isProductionRuntime()) return null;
+    return readMockSession();
+  }
 
   const { data, error } = await supabase.auth.getUser();
   const user = data.user;
@@ -275,7 +295,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 export async function signOut(): Promise<void> {
   const supabase = createClient();
   if (!supabase) {
-    writeJson(SESSION_KEY, null);
+    if (!isProductionRuntime()) writeJson(SESSION_KEY, null);
     return;
   }
 

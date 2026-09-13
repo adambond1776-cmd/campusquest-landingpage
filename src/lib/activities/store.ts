@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
+import { assertProductionPersistence, supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
 import type { Activity, ActivityStatus } from '@/lib/activities/types';
 
 /**
@@ -199,6 +199,8 @@ export function resetActivityStoreForTesting(): void {
 
 export function getActivityStore(): ActivityStore {
   if (cached) return cached;
+
+  assertProductionPersistence('The activity directory');
 
   const url = supabaseUrl();
   const serviceKey = supabaseServiceRoleKey();

@@ -16,17 +16,28 @@ export const dynamic = 'force-dynamic';
  * makes the link unguessable, resolving twice is a no-op, and either outcome
  * can be corrected by following the other link.
  */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function page(title: string, detail: string, tone: 'good' | 'bad'): NextResponse {
   const color = tone === 'good' ? '#34d399' : '#f87171';
+  const safeTitle = escapeHtml(title);
+  const safeDetail = escapeHtml(detail);
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${title}</title></head>
+<title>${safeTitle}</title></head>
 <body style="margin:0;background:#0b1020;color:#fff;font:16px/1.6 system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;padding:24px">
 <div style="max-width:32rem">
-<h1 style="color:${color};font-size:1.35rem;margin:0 0 12px">${title}</h1>
-<p style="color:rgba(255,255,255,.7);margin:0">${detail}</p>
+<h1 style="color:${color};font-size:1.35rem;margin:0 0 12px">${safeTitle}</h1>
+<p style="color:rgba(255,255,255,.7);margin:0">${safeDetail}</p>
 </div></body></html>`;
 
   return new NextResponse(html, {

@@ -120,6 +120,9 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 };
 
+/** Checkout is not wired. Paid CTAs must not claim a charge will complete. */
+export const CHECKOUT_LIVE = false;
+
 export const STUDENT_PLANS: Plan[] = [PLANS.free, PLANS.basic, PLANS.premium];
 
 /** What a university pays per student per year for Genius Mining. */

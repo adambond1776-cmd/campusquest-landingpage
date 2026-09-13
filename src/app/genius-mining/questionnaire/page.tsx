@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { SECTION_IDS } from '@hiddengeniuslabs/genius-mining';
+import AgeLocked from '@/components/gm/AgeLocked';
 import GmHeader from '@/components/gm/GmHeader';
 import QuestionnaireForm from '@/components/gm/QuestionnaireForm';
+import { requireGeniusMiningAccess } from '@/lib/gate';
 import { currentIdentity } from '@/lib/gm/identity';
 import { loadCurrentRecord } from '@/lib/gm/load';
 
@@ -13,6 +15,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function QuestionnairePage() {
+  const access = await requireGeniusMiningAccess();
+  if (!access.allowed) return <AgeLocked reason={access.reason} />;
+
   const identity = await currentIdentity();
   const record = await loadCurrentRecord();
 

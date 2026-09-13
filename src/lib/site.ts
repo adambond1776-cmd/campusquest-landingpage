@@ -18,6 +18,17 @@ function resolve(): string | undefined {
 export const siteUrl = resolve();
 
 /**
+ * Absolute origin for emailed links. Production refuses to mint a URL that
+ * would stringify as `undefined/...`. Local development falls back to the
+ * documented dev origin.
+ */
+export function publicOrigin(): string | undefined {
+  return siteUrl;
+}
+
+export const LOCAL_DEV_ORIGIN = 'http://localhost:43917';
+
+/**
  * Social profiles, rendered only when configured.
  *
  * These used to be hardcoded icons pointing at `#`. A footer full of links that

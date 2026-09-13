@@ -8,6 +8,7 @@ import {
   canEditProfile,
   canRunAnalysis,
   needsStudentTiebreak,
+  recordCall,
   recordEdit,
   resolveD1,
   runAnalysis,
@@ -18,13 +19,14 @@ import {
   type Verb,
 } from '@hiddengeniuslabs/genius-mining';
 import { sendOperatorAlert } from '@/lib/alerts';
-import { defaultCampusId } from '@/lib/env';
+import { defaultCampusId, supabaseConfigured } from '@/lib/env';
+import { requireGeniusMiningAccess } from '@/lib/gate';
 import { currentIdentity, ensureDevIdentity } from '@/lib/gm/identity';
 import { CONSENT_COPY_VERSION, type GeniusMiningRecord } from '@/lib/gm/records';
 import { getStore } from '@/lib/gm/store';
 import { EngineUnavailableError, resolveEngine } from '@/lib/gm/transport';
 import { validateSection } from '@/lib/gm/section-validation';
-import { supabaseConfigured } from '@/lib/env';
+import { isProductionRuntime } from '@/lib/runtime';
 
 export type ActionResult =
   | { ok: true }
@@ -44,9 +46,19 @@ function entitledToGeniusMining(record: GeniusMiningRecord): boolean {
   }).geniusMining;
 }
 
-async function requireRecord(): Promise<GeniusMiningRecord> {
-  const identity = supabaseConfigured() ? await currentIdentity() : await ensureDevIdentity();
-  if (!identity) throw new Error('Sign in to continue.');
+async function requireRecord(): Promise<GeniusMiningRecord | { ok: false; message: string }> {
+  const access = await requireGeniusMiningAccess();
+  if (!access.allowed) return { ok: false, message: access.reason };
+
+  let identity;
+  if (supabaseConfigured()) {
+    identity = await currentIdentity();
+  } else if (isProductionRuntime()) {
+    return { ok: false, message: 'Sign in to continue.' };
+  } else {
+    identity = await ensureDevIdentity();
+  }
+  if (!identity) return { ok: false, message: 'Sign in to continue.' };
 
   const store = getStore();
   const existing = await store.findByUserId(identity.userId);
@@ -55,10 +67,19 @@ async function requireRecord(): Promise<GeniusMiningRecord> {
   return store.createFor(identity.userId, defaultCampusId());
 }
 
+function isDenied(
+  value: GeniusMiningRecord | { ok: false; message: string }
+): value is { ok: false; message: string } {
+  return 'ok' in value && value.ok === false;
+}
+
 /** Starts a record or picks up the one already in progress. */
-export async function startOrResume(): Promise<{ participantCode: string }> {
-  const record = await requireRecord();
-  return { participantCode: record.participant_code };
+export async function startOrResume(): Promise<
+  { participantCode: string } | { ok: false; message: string }
+> {
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  return { participantCode: loaded.participant_code };
 }
 
 /**
@@ -68,7 +89,9 @@ export async function startOrResume(): Promise<{ participantCode: string }> {
  */
 export async function acceptConsent(): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   if (record.consent) return { ok: true };
 
@@ -120,7 +143,9 @@ function noteSitting(record: GeniusMiningRecord): GeniusMiningRecord['progress']
  */
 export async function saveDraft(values: Partial<QuestionnaireResponses>): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   await store.save({
     ...record,
@@ -143,7 +168,9 @@ export async function submitSection(
   values: Partial<QuestionnaireResponses>
 ): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   if (!SECTION_IDS.includes(sectionId)) {
     return { ok: false, message: `Unknown section ${sectionId}.` };
@@ -197,7 +224,9 @@ export async function submitSection(
  */
 export async function chooseTiebreak(verb: Verb): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   if (!record.d1_resolution || !needsStudentTiebreak(record.d1_resolution)) {
     return { ok: false, message: 'There is no tie to break.' };
@@ -226,7 +255,9 @@ export async function runAnalysisAction(
   options: { kind?: 'initial' | 'restart' } = {}
 ): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   const remaining = SECTION_IDS.filter((id) => !record.progress.completed_sections.includes(id));
   if (remaining.length > 0) {
@@ -261,8 +292,6 @@ export async function runAnalysisAction(
   try {
     engine = resolveEngine(responses, record.d1_resolution);
   } catch (error) {
-    // No key in production. The student keeps their answers and their credits;
-    // handing them a fixture-generated profile would be the worse outcome.
     if (error instanceof EngineUnavailableError) {
       await sendOperatorAlert({
         severity: 'action_required',
@@ -280,22 +309,41 @@ export async function runAnalysisAction(
     throw error;
   }
 
+  const lockedLedger = recordCall(record.ledger);
+  await store.save({ ...record, ledger: lockedLedger });
+
+  const releaseLock = async () => {
+    await store.save({
+      ...record,
+      ledger: { ...record.ledger, calls_used_this_run: 0 },
+    });
+  };
+
   let result;
   try {
     result = await runAnalysis(responses, record.d1_resolution, engine.transport);
   } catch (error) {
+    await releaseLock();
+    const message = (error as Error).message;
+    const timedOut = /timed out|aborted|TimeoutError|AbortError/i.test(
+      `${(error as Error).name} ${message}`
+    );
     await sendOperatorAlert({
       severity: 'critical',
-      subject: 'Engine 1 call failed',
+      subject: timedOut ? 'Engine 1 call timed out' : 'Engine 1 call failed',
       participantCode: record.participant_code,
-      body: `The analysis call threw before returning anything.\n\n${(error as Error).message}`,
+      body: `The analysis call threw before returning anything.\n\n${message.slice(0, 500)}`,
     });
-    return { ok: false, message: 'The analysis could not run. Someone has been alerted.' };
+    return {
+      ok: false,
+      message: timedOut
+        ? 'The analysis timed out. Your answers are saved and nothing was charged — try again.'
+        : 'The analysis could not run. Your answers are saved and nothing was charged.',
+    };
   }
 
   if (!result.ok) {
-    // Two contract failures is a prompt or model problem that a third call will
-    // not fix, and the output is never hand-repaired.
+    await releaseLock();
     await sendOperatorAlert({
       severity: 'critical',
       subject: 'Engine 1 output failed the contract twice',
@@ -327,7 +375,7 @@ export async function runAnalysisAction(
   await store.save({
     ...record,
     profile: { ...profile, status: transition(profile.status, 'returned_to_student') },
-    ledger: settleRun(record.ledger, entitlement),
+    ledger: settleRun(lockedLedger, entitlement),
   });
 
   revalidatePath('/genius-mining/profile');
@@ -337,7 +385,9 @@ export async function runAnalysisAction(
 /** The student rewrites a line on their own profile. Free while subscribed. */
 export async function editProfileField(field: string, revised: string): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   if (!record.profile) return { ok: false, message: 'There is no profile yet.' };
   if (!canEditProfile(entitledToGeniusMining(record))) {
@@ -374,7 +424,9 @@ export async function editProfileField(field: string, revised: string): Promise<
 /** Nothing is filed until the student says it is finished. */
 export async function acceptProfile(): Promise<ActionResult> {
   const store = getStore();
-  const record = await requireRecord();
+  const loaded = await requireRecord();
+  if (isDenied(loaded)) return loaded;
+  const record = loaded;
 
   if (!record.profile) return { ok: false, message: 'There is no profile yet.' };
 
