@@ -27,3 +27,7 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+.env.local
+.env*.local
+.env*
