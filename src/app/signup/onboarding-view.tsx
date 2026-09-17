@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -38,6 +38,9 @@ import AgeFields, {
 import { recordAge } from '@/app/signup/age-actions';
 import { completeOnboarding, signUpWithEmail, type Plan, type Role } from '@/lib/auth';
 import { CHECKOUT_LIVE, PLANS, PRICE_LOCK_COPY, STUDENT_PLANS, formatPrice } from '@/lib/pricing';
+import { createSubmitGate, runSignupAttempt } from '@/lib/signup-attempt';
+import { SIGNUP_RETRY_MESSAGE } from '@/lib/signup-diagnostics';
+import { SIGNUP_NETWORK_TIMEOUT_MS, withTimeout } from '@/lib/timeout';
 import { validateEmail } from '@/lib/validation';
 
 const interestOptions = [
@@ -99,6 +102,7 @@ export default function Onboarding({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<SentLink | null>(null);
+  const submitGate = useRef(createSubmitGate());
 
   // Clear a field's complaint as soon as it is being corrected, so stale errors
   // never sit under freshly typed input.
@@ -109,7 +113,8 @@ export default function Onboarding({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting || !role || !plan) return;
+    if (!role || !plan) return;
+    if (!submitGate.current.tryStart()) return;
 
     const billedPlan = !CHECKOUT_LIVE && role === 'student' ? 'free' : plan;
 
@@ -118,6 +123,7 @@ export default function Onboarding({
     if (!finishing) {
       const emailError = validateEmail(email);
       if (emailError) {
+        submitGate.current.finish();
         setFieldErrors({ email: emailError });
         setFormError(null);
         return;
@@ -128,50 +134,74 @@ export default function Onboarding({
     setFormError(null);
     setSubmitting(true);
 
-    // The age answer is written before the account so the gate is in place the
-    // first time they sign in. Without an address there is nothing to key it to,
-    // which only happens if the session expired mid-form.
-    if (address && age.birthYear) {
-      const recorded = await recordAge({
-        email: address,
-        birthYear: age.birthYear,
-        guardianName: age.guardianName,
-        guardianEmail: age.guardianEmail,
-      });
+    try {
+      if (finishing) {
+        if (address && age.birthYear) {
+          const recorded = await withTimeout(
+            recordAge({
+              email: address,
+              birthYear: age.birthYear,
+              guardianName: age.guardianName,
+              guardianEmail: age.guardianEmail,
+            }),
+            SIGNUP_NETWORK_TIMEOUT_MS,
+            'record_age'
+          );
 
-      if (!recorded.ok) {
-        setFormError(recorded.message);
-        setSubmitting(false);
+          if (!recorded.ok) {
+            setFormError(recorded.message);
+            return;
+          }
+        }
+
+        const result = await withTimeout(
+          completeOnboarding({ role, interests, plan: billedPlan }),
+          SIGNUP_NETWORK_TIMEOUT_MS,
+          'complete_onboarding'
+        );
+        if (!result.ok) {
+          setFormError(result.message);
+          return;
+        }
+
+        router.push('/welcome?new=1');
         return;
       }
-    }
 
-    if (finishing) {
-      const result = await completeOnboarding({ role, interests, plan: billedPlan });
+      if (!age.birthYear) {
+        setFormError('Tell us the year you were born so we know what we can show you.');
+        return;
+      }
+
+      const result = await runSignupAttempt(
+        {
+          email,
+          role,
+          interests,
+          plan: billedPlan,
+          birthYear: age.birthYear,
+          guardianName: age.guardianName,
+          guardianEmail: age.guardianEmail,
+        },
+        { recordAge, signUpWithEmail }
+      );
+
       if (!result.ok) {
         setFormError(result.message);
-        setSubmitting(false);
         return;
       }
 
-      router.push('/welcome?new=1');
-      return;
-    }
-
-    const result = await signUpWithEmail({ email, role, interests, plan: billedPlan });
-
-    if (!result.ok) {
-      setFormError(result.message);
+      setSent({
+        email: email.trim(),
+        mock: result.mock,
+        alreadyRegistered: result.alreadyRegistered,
+      });
+    } catch {
+      setFormError(SIGNUP_RETRY_MESSAGE);
+    } finally {
+      submitGate.current.finish();
       setSubmitting(false);
-      return;
     }
-
-    setSubmitting(false);
-    setSent({
-      email: email.trim(),
-      mock: result.mock,
-      alreadyRegistered: result.alreadyRegistered,
-    });
   };
 
   const retry = () => {

@@ -12,6 +12,13 @@ import { alertsConfigured } from '@/lib/env';
 import { PRIVACY_VERSION, TERMS_VERSION, legalEntity } from '@/lib/legal';
 import { isProductionRuntime } from '@/lib/runtime';
 import { LOCAL_DEV_ORIGIN, publicOrigin } from '@/lib/site';
+import {
+  classifySignupError,
+  logSignupFailure,
+  logSignupSuccess,
+  userFacingSignupMessage,
+} from '@/lib/signup-diagnostics';
+import { SIGNUP_NETWORK_TIMEOUT_MS, withTimeout } from '@/lib/timeout';
 
 export type AgeResult =
   | { ok: true; bracket: 'adult' }
@@ -25,8 +32,25 @@ export type AgeResult =
  * is keyed by email address and the gate has to be in place the first time they
  * sign in. Someone who abandons the sign-up leaves behind a row with a birth
  * year and no account, which the retention job clears.
+ *
+ * Must not throw: the signup spinner has no other way to clear if this rejects.
  */
 export async function recordAge(input: {
+  email: string;
+  birthYear: number;
+  guardianName?: string;
+  guardianEmail?: string;
+}): Promise<AgeResult> {
+  try {
+    return await withTimeout(recordAgeUnchecked(input), SIGNUP_NETWORK_TIMEOUT_MS, 'record_age');
+  } catch (error) {
+    const kind = classifySignupError(error);
+    logSignupFailure({ stage: 'record_age', kind });
+    return { ok: false, message: userFacingSignupMessage(kind) };
+  }
+}
+
+async function recordAgeUnchecked(input: {
   email: string;
   birthYear: number;
   guardianName?: string;
@@ -38,6 +62,7 @@ export async function recordAge(input: {
   const bracket = bracketForBirthYear(input.birthYear);
 
   if (bracket === 'under_16' || bracket === 'unknown') {
+    logSignupFailure({ stage: 'record_age', kind: 'validation' });
     return {
       ok: false,
       message: `CampusQuest is for students aged ${MINIMUM_AGE} and over.`,
@@ -48,6 +73,7 @@ export async function recordAge(input: {
 
   if (bracket === 'adult') {
     await store.attest(email, input.birthYear);
+    logSignupSuccess('record_age');
     return { ok: true, bracket: 'adult' };
   }
 
@@ -55,10 +81,12 @@ export async function recordAge(input: {
   const guardianEmail = input.guardianEmail?.trim().toLowerCase() ?? '';
 
   if (!guardianName || !guardianEmail) {
+    logSignupFailure({ stage: 'record_age', kind: 'validation' });
     return { ok: false, message: 'We need a parent or guardian to contact.' };
   }
 
   if (guardianEmail === email) {
+    logSignupFailure({ stage: 'record_age', kind: 'validation' });
     return {
       ok: false,
       message: 'The guardian address has to be different from your own.',
@@ -66,6 +94,7 @@ export async function recordAge(input: {
   }
 
   if (isProductionRuntime() && !alertsConfigured()) {
+    logSignupFailure({ stage: 'guardian_email', kind: 'configuration' });
     return {
       ok: false,
       message:
@@ -75,6 +104,7 @@ export async function recordAge(input: {
 
   const origin = publicOrigin() ?? (isProductionRuntime() ? undefined : LOCAL_DEV_ORIGIN);
   if (!origin) {
+    logSignupFailure({ stage: 'guardian_email', kind: 'configuration' });
     return {
       ok: false,
       message:
@@ -109,6 +139,7 @@ export async function recordAge(input: {
   });
 
   if (!delivery.delivered) {
+    logSignupFailure({ stage: 'guardian_email', kind: 'email' });
     await sendOperatorAlert({
       severity: 'action_required',
       subject: 'A guardian consent email did not send',
@@ -131,5 +162,6 @@ export async function recordAge(input: {
     }
   }
 
+  logSignupSuccess('record_age');
   return { ok: true, bracket: 'minor', guardianEmailed: delivery.delivered };
 }

@@ -120,7 +120,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: S
       <Navbar />
       <main className="bg-cream-50 min-h-screen">
         {/* Top padding clears the fixed navbar, which overlays the page. */}
-        <header className="bg-white border-b border-cream-300 pt-16 lg:pt-20">
+        <header className="bg-white border-b border-cream-300">
           <div className="max-w-content mx-auto px-5 sm:px-8 py-10 sm:py-14">
             <span className="eyebrow">
               <Compass className="w-4 h-4" />

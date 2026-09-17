@@ -1,7 +1,15 @@
 'use client';
 
 import { AUTH_UNCONFIGURED_MESSAGE, isProductionRuntime } from '@/lib/runtime';
+import {
+  classifySignupError,
+  logSignupFailure,
+  logSignupSuccess,
+  SIGNUP_RETRY_MESSAGE,
+  userFacingSignupMessage,
+} from '@/lib/signup-diagnostics';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { SIGNUP_NETWORK_TIMEOUT_MS, withTimeout } from '@/lib/timeout';
 
 export type Role = 'student' | 'organization';
 export type Plan = 'free' | 'basic' | 'premium' | 'club';
@@ -63,13 +71,33 @@ const asRole = (value: unknown): Role | undefined =>
 const asPlan = (value: unknown): Plan | undefined =>
   PLANS.includes(value as Plan) ? (value as Plan) : undefined;
 
+function isLocalOrigin(origin: string): boolean {
+  return /localhost|127\.0\.0\.1/i.test(origin);
+}
+
 /**
  * Absolute URL of the route handler that trades the emailed code for a
- * session. Supabase requires an absolute URL here, and it has to be built from
- * the live origin so preview deploys send their links back to themselves.
+ * session. Production prefers NEXT_PUBLIC_SITE_URL so a stray preview host
+ * cannot mint localhost or vercel.app callback links.
  */
-function callbackUrl(redirectTo: string): string {
-  const callback = new URL('/auth/callback', window.location.origin);
+function callbackOrigin(): string | null {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
+  if (isProductionRuntime()) {
+    const origin = configured || (typeof window !== 'undefined' ? window.location.origin : '');
+    if (!origin || isLocalOrigin(origin)) return null;
+    return origin;
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return configured || null;
+}
+
+function callbackUrl(redirectTo: string): string | null {
+  const origin = callbackOrigin();
+  if (!origin) return null;
+  const callback = new URL('/auth/callback', origin);
   callback.searchParams.set('next', redirectTo);
   return callback.toString();
 }
@@ -212,16 +240,37 @@ export async function signInWithEmail({
   email,
   redirectTo = SIGN_IN_REDIRECT,
 }: SignInInput): Promise<AuthResult> {
-  const supabase = createClient();
-  if (!supabase) return mockAuthOrFail(() => mockSendLink(email));
+  try {
+    const supabase = createClient();
+    if (!supabase) return mockAuthOrFail(() => mockSendLink(email));
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email: normalizeEmail(email),
-    options: { emailRedirectTo: callbackUrl(redirectTo) },
-  });
+    const emailRedirectTo = callbackUrl(redirectTo);
+    if (!emailRedirectTo) {
+      logSignupFailure({ stage: 'sign_in', kind: 'configuration' });
+      return { ok: false, message: AUTH_UNCONFIGURED_MESSAGE };
+    }
 
-  if (error) return { ok: false, message: error.message };
-  return { ok: true, mock: false, alreadyRegistered: false };
+    const { error } = await withTimeout(
+      supabase.auth.signInWithOtp({
+        email: normalizeEmail(email),
+        options: { emailRedirectTo },
+      }),
+      SIGNUP_NETWORK_TIMEOUT_MS,
+      'sign_in_otp'
+    );
+
+    if (error) {
+      logSignupFailure({ stage: 'sign_in', kind: 'supabase_auth' });
+      return { ok: false, message: SIGNUP_RETRY_MESSAGE };
+    }
+
+    logSignupSuccess('sign_in');
+    return { ok: true, mock: false, alreadyRegistered: false };
+  } catch (error) {
+    const kind = classifySignupError(error);
+    logSignupFailure({ stage: 'sign_in', kind });
+    return { ok: false, message: userFacingSignupMessage(kind) };
+  }
 }
 
 /**
@@ -234,22 +283,43 @@ export async function signUpWithEmail({
   interests,
   plan,
 }: SignUpInput): Promise<AuthResult> {
-  const supabase = createClient();
-  if (!supabase) {
-    return mockAuthOrFail(() => mockSendLink(email, { role, interests, plan }));
+  try {
+    const supabase = createClient();
+    if (!supabase) {
+      return mockAuthOrFail(() => mockSendLink(email, { role, interests, plan }));
+    }
+
+    const emailRedirectTo = callbackUrl(SIGN_UP_REDIRECT);
+    if (!emailRedirectTo) {
+      logSignupFailure({ stage: 'sign_up', kind: 'configuration' });
+      return { ok: false, message: AUTH_UNCONFIGURED_MESSAGE };
+    }
+
+    const { error } = await withTimeout(
+      supabase.auth.signInWithOtp({
+        email: normalizeEmail(email),
+        options: {
+          emailRedirectTo,
+          shouldCreateUser: true,
+          data: { role, interests, plan },
+        },
+      }),
+      SIGNUP_NETWORK_TIMEOUT_MS,
+      'sign_up_otp'
+    );
+
+    if (error) {
+      logSignupFailure({ stage: 'sign_up', kind: 'supabase_auth' });
+      return { ok: false, message: SIGNUP_RETRY_MESSAGE };
+    }
+
+    logSignupSuccess('sign_up');
+    return { ok: true, mock: false, alreadyRegistered: false };
+  } catch (error) {
+    const kind = classifySignupError(error);
+    logSignupFailure({ stage: 'sign_up', kind });
+    return { ok: false, message: userFacingSignupMessage(kind) };
   }
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email: normalizeEmail(email),
-    options: {
-      emailRedirectTo: callbackUrl(SIGN_UP_REDIRECT),
-      shouldCreateUser: true,
-      data: { role, interests, plan },
-    },
-  });
-
-  if (error) return { ok: false, message: error.message };
-  return { ok: true, mock: false, alreadyRegistered: false };
 }
 
 /**
@@ -260,17 +330,30 @@ export async function signUpWithEmail({
  * role, plan or interests. This is how they finish, without a second link.
  */
 export async function completeOnboarding(details: OnboardingInput): Promise<OnboardingResult> {
-  const supabase = createClient();
-  if (!supabase) {
-    if (isProductionRuntime()) {
-      return { ok: false, message: AUTH_UNCONFIGURED_MESSAGE };
+  try {
+    const supabase = createClient();
+    if (!supabase) {
+      if (isProductionRuntime()) {
+        return { ok: false, message: AUTH_UNCONFIGURED_MESSAGE };
+      }
+      return mockCompleteOnboarding(details);
     }
-    return mockCompleteOnboarding(details);
-  }
 
-  const { error } = await supabase.auth.updateUser({ data: { ...details } });
-  if (error) return { ok: false, message: error.message };
-  return { ok: true };
+    const { error } = await withTimeout(
+      supabase.auth.updateUser({ data: { ...details } }),
+      SIGNUP_NETWORK_TIMEOUT_MS,
+      'complete_onboarding'
+    );
+    if (error) {
+      logSignupFailure({ stage: 'complete_onboarding', kind: 'supabase_auth' });
+      return { ok: false, message: SIGNUP_RETRY_MESSAGE };
+    }
+    return { ok: true };
+  } catch (error) {
+    const kind = classifySignupError(error);
+    logSignupFailure({ stage: 'complete_onboarding', kind });
+    return { ok: false, message: userFacingSignupMessage(kind) };
+  }
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {

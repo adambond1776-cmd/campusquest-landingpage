@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Compass, Loader2, Mail } from 'lucide-react';
 import CheckInbox from '@/components/CheckInbox';
 import FormAlert from '@/components/FormAlert';
 import TextField from '@/components/TextField';
 import { signInWithEmail } from '@/lib/auth';
+import { createSubmitGate } from '@/lib/signup-attempt';
+import { SIGNUP_RETRY_MESSAGE } from '@/lib/signup-diagnostics';
 import { validateEmail } from '@/lib/validation';
 
 type SentLink = {
@@ -21,6 +23,7 @@ export default function Login() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<SentLink | null>(null);
+  const submitGate = useRef(createSubmitGate());
 
   // Clear a field's complaint as soon as it is being corrected, so stale errors
   // never sit under freshly typed input.
@@ -31,11 +34,12 @@ export default function Login() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting) return;
+    if (!submitGate.current.tryStart()) return;
 
     const emailError = validateEmail(email);
 
     if (emailError) {
+      submitGate.current.finish();
       setFieldErrors({ email: emailError });
       setFormError(null);
       return;
@@ -45,20 +49,25 @@ export default function Login() {
     setFormError(null);
     setSubmitting(true);
 
-    const result = await signInWithEmail({ email });
+    try {
+      const result = await signInWithEmail({ email });
 
-    if (!result.ok) {
-      setFormError(result.message);
+      if (!result.ok) {
+        setFormError(result.message);
+        return;
+      }
+
+      setSent({
+        email: email.trim(),
+        mock: result.mock,
+        alreadyRegistered: result.alreadyRegistered,
+      });
+    } catch {
+      setFormError(SIGNUP_RETRY_MESSAGE);
+    } finally {
+      submitGate.current.finish();
       setSubmitting(false);
-      return;
     }
-
-    setSubmitting(false);
-    setSent({
-      email: email.trim(),
-      mock: result.mock,
-      alreadyRegistered: result.alreadyRegistered,
-    });
   };
 
   const retry = () => {
