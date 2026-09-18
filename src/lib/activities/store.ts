@@ -2,7 +2,20 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { assertProductionPersistence, supabaseServiceRoleKey, supabaseUrl } from '@/lib/env';
+import {
+  assertProductionPersistence,
+  supabaseAnonKey,
+  supabaseServiceRoleKey,
+  supabaseUrl,
+} from '@/lib/env';
+import { isProductionRuntime } from '@/lib/runtime';
+import {
+  ActivitiesDirectoryError,
+  classifyActivitiesReadError,
+  directoryReadBlocker,
+  inspectSupabaseAnonCredentials,
+  logActivitiesFailure,
+} from '@/lib/supabase/credentials';
 import type { Activity, ActivityStatus } from '@/lib/activities/types';
 
 /**
@@ -144,7 +157,15 @@ class SupabaseActivityStore implements ActivityStore {
     if (campusId) request = request.eq('campus_id', campusId);
 
     const { data, error } = await request;
-    if (error) throw new Error(`Reading activities failed: ${error.message}`);
+    if (error) {
+      const kind = classifyActivitiesReadError(error);
+      logActivitiesFailure({
+        stage: 'read_all',
+        kind,
+        inspection: inspectSupabaseAnonCredentials(supabaseUrl(), supabaseAnonKey()),
+      });
+      throw new ActivitiesDirectoryError(kind);
+    }
     return (data ?? []) as Activity[];
   }
 
@@ -157,7 +178,15 @@ class SupabaseActivityStore implements ActivityStore {
     if (query.from) request = request.or(`starts_at.is.null,starts_at.gte.${query.from.toISOString()}`);
 
     const { data, error } = await request;
-    if (error) throw new Error(`Listing activities failed: ${error.message}`);
+    if (error) {
+      const kind = classifyActivitiesReadError(error);
+      logActivitiesFailure({
+        stage: 'list',
+        kind,
+        inspection: inspectSupabaseAnonCredentials(supabaseUrl(), supabaseAnonKey()),
+      });
+      throw new ActivitiesDirectoryError(kind);
+    }
 
     // Search and category matching stay in memory: the directory is a few
     // thousand rows per campus, and pushing them into Postgres text search
@@ -167,7 +196,15 @@ class SupabaseActivityStore implements ActivityStore {
 
   async get(id: string): Promise<Activity | null> {
     const { data, error } = await this.client.from(TABLE).select('*').eq('id', id).maybeSingle();
-    if (error) throw new Error(`Reading activity failed: ${error.message}`);
+    if (error) {
+      const kind = classifyActivitiesReadError(error);
+      logActivitiesFailure({
+        stage: 'read_one',
+        kind,
+        inspection: inspectSupabaseAnonCredentials(supabaseUrl(), supabaseAnonKey()),
+      });
+      throw new ActivitiesDirectoryError(kind);
+    }
     return (data as Activity | null) ?? null;
   }
 
@@ -191,24 +228,59 @@ class SupabaseActivityStore implements ActivityStore {
   }
 }
 
-let cached: ActivityStore | null = null;
+let cachedRead: ActivityStore | null = null;
+let cachedWrite: ActivityStore | null = null;
 
 export function resetActivityStoreForTesting(): void {
-  cached = null;
+  cachedRead = null;
+  cachedWrite = null;
 }
 
+function createDirectoryClient(key: string, url: string): SupabaseClient {
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+/**
+ * Public directory reads. Uses NEXT_PUBLIC_SUPABASE_URL + the anon key so the
+ * page honours RLS (`listed` / `verified` only). Never use the service-role
+ * key here: that belongs to ingest, not the student-facing listing.
+ */
 export function getActivityStore(): ActivityStore {
-  if (cached) return cached;
+  if (cachedRead) return cachedRead;
+
+  const url = supabaseUrl();
+  const anonKey = supabaseAnonKey();
+  const inspection = inspectSupabaseAnonCredentials(url, anonKey);
+  const blocker = directoryReadBlocker(inspection);
+
+  if (blocker) {
+    if (isProductionRuntime()) {
+      logActivitiesFailure({ stage: 'open_store', kind: blocker, inspection });
+      throw new ActivitiesDirectoryError(blocker);
+    }
+    cachedRead = new LocalActivityStore();
+    return cachedRead;
+  }
+
+  cachedRead = new SupabaseActivityStore(createDirectoryClient(anonKey as string, url as string));
+  return cachedRead;
+}
+
+/**
+ * Ingest and other privileged writes. Server-only. Bypasses RLS.
+ */
+export function getActivityAdminStore(): ActivityStore {
+  if (cachedWrite) return cachedWrite;
 
   assertProductionPersistence('The activity directory');
 
   const url = supabaseUrl();
   const serviceKey = supabaseServiceRoleKey();
 
-  cached =
+  cachedWrite =
     url && serviceKey
-      ? new SupabaseActivityStore(createClient(url, serviceKey, { auth: { persistSession: false } }))
+      ? new SupabaseActivityStore(createDirectoryClient(serviceKey, url))
       : new LocalActivityStore();
 
-  return cached;
+  return cachedWrite;
 }

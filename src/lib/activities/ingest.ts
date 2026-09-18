@@ -15,7 +15,7 @@ import type {
   SourceId,
 } from '@/lib/activities/types';
 import { STALE_AFTER_DAYS } from '@/lib/activities/types';
-import { getActivityStore } from '@/lib/activities/store';
+import { getActivityAdminStore } from '@/lib/activities/store';
 import { ATHLETICS_FEEDS, fetchAthletics } from '@/lib/activities/sources/athletics';
 import { LOCALIST_FEEDS, fetchLocalist } from '@/lib/activities/sources/localist';
 import { ENGAGE_FEEDS, fetchEngage } from '@/lib/activities/sources/engage';
@@ -252,7 +252,7 @@ export function campusesWithFeeds(): string[] {
  * refreshing, and a half-updated directory beats a stale one.
  */
 export async function runIngest(campusId: string, now: Date = new Date()): Promise<IngestReport[]> {
-  const store = getActivityStore();
+  const store = getActivityAdminStore();
   const existing = await store.all(campusId);
   const reports: IngestReport[] = [];
   let feedsSucceeded = false;
@@ -306,7 +306,7 @@ async function applyCuratedOverlay(
   directory: CuratedDirectory,
   now: Date
 ): Promise<IngestReport> {
-  const store = getActivityStore();
+  const store = getActivityAdminStore();
   const base: IngestReport = {
     source: 'curated',
     campus_id: campusId,

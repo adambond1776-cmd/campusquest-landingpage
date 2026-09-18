@@ -7,9 +7,22 @@
  * the auth/email guards.
  */
 
+function unwrapQuoted(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0];
+    const last = value[value.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return value.slice(1, -1).trim();
+    }
+  }
+  return value;
+}
+
 function str(name: string): string | undefined {
   const value = process.env[name]?.trim();
-  return value ? value : undefined;
+  if (!value) return undefined;
+  const unwrapped = unwrapQuoted(value);
+  return unwrapped ? unwrapped : undefined;
 }
 
 function list(name: string): string[] {

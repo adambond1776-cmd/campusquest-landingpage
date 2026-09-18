@@ -15,6 +15,7 @@ import { defaultCampusId } from '@/lib/env';
 import { gate } from '@/lib/gate';
 import { privacyEmail } from '@/lib/legal';
 import { siteUrl } from '@/lib/site';
+import { publicActivitiesError } from '@/lib/supabase/credentials';
 
 export const metadata: Metadata = {
   title: 'What is happening on campus | CampusQuest',
@@ -53,7 +54,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: S
       PUBLIC_STATUSES.includes(row.status)
     );
   } catch (error) {
-    loadError = error instanceof Error ? error.message : 'Could not load activities.';
+    loadError = publicActivitiesError(error);
   }
 
   const now = new Date();
