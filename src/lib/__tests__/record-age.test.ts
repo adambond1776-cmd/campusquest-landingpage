@@ -29,5 +29,6 @@ describe('recordAge', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('expected failure');
     expect(result.message).not.toMatch(/JWT|Could not save age/i);
+    expect(result.message).not.toMatch(/storage is not configured/i);
   });
 });

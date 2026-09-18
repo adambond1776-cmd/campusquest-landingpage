@@ -1,5 +1,4 @@
-import type { AgeResult } from '@/app/signup/age-actions';
-import type { AuthResult, SignUpInput } from '@/lib/auth';
+import type { SignupStartInput, SignupStartResult } from '@/lib/signup-types';
 import {
   classifySignupError,
   logSignupFailure,
@@ -7,61 +6,24 @@ import {
 } from '@/lib/signup-diagnostics';
 import { SIGNUP_NETWORK_TIMEOUT_MS, withTimeout } from '@/lib/timeout';
 
-export type SignupAttemptInput = {
-  email: string;
-  role: SignUpInput['role'];
-  interests: string[];
-  plan: SignUpInput['plan'];
-  birthYear: number;
-  guardianName?: string;
-  guardianEmail?: string;
-};
-
 export type SignupAttemptDeps = {
-  recordAge: (input: {
-    email: string;
-    birthYear: number;
-    guardianName?: string;
-    guardianEmail?: string;
-  }) => Promise<AgeResult>;
-  signUpWithEmail: (input: SignUpInput) => Promise<AuthResult>;
+  startSignup: (input: SignupStartInput) => Promise<SignupStartResult>;
   timeoutMs?: number;
 };
 
 /**
- * Serializes age recording then the magic-link request, with a timeout around
- * each network hop so a hung Supabase/email call cannot leave the spinner up.
+ * Sends the 6-digit verification code after validation. The startSignup
+ * implementation records age itself; this wrapper exists so the client can
+ * timeout the whole hop.
  */
 export async function runSignupAttempt(
-  input: SignupAttemptInput,
+  input: SignupStartInput,
   deps: SignupAttemptDeps
-): Promise<AuthResult> {
+): Promise<SignupStartResult> {
   const timeoutMs = deps.timeoutMs ?? SIGNUP_NETWORK_TIMEOUT_MS;
 
   try {
-    const recorded = await withTimeout(
-      deps.recordAge({
-        email: input.email,
-        birthYear: input.birthYear,
-        guardianName: input.guardianName,
-        guardianEmail: input.guardianEmail,
-      }),
-      timeoutMs,
-      'record_age'
-    );
-
-    if (!recorded.ok) return { ok: false, message: recorded.message };
-
-    return await withTimeout(
-      deps.signUpWithEmail({
-        email: input.email,
-        role: input.role,
-        interests: input.interests,
-        plan: input.plan,
-      }),
-      timeoutMs,
-      'sign_up'
-    );
+    return await withTimeout(deps.startSignup(input), timeoutMs, 'start_signup');
   } catch (error) {
     const kind = classifySignupError(error);
     logSignupFailure({ stage: 'signup_attempt', kind });

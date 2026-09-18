@@ -41,7 +41,7 @@ export default async function MethodPage() {
 
   return (
     <>
-      <Navbar />
+      <Navbar appearance="dark" />
 
       <main className="min-h-screen bg-brand-950 text-white">
         {/* Header */}

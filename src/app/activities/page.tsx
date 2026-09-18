@@ -117,7 +117,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: S
 
   return (
     <>
-      <Navbar />
+      <Navbar appearance="light" />
       <main className="bg-cream-50 min-h-screen">
         {/* Top padding clears the fixed navbar, which overlays the page. */}
         <header className="bg-white border-b border-cream-300">
@@ -279,7 +279,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: S
 function DirectoryLocked({ reason }: { reason: string }) {
   return (
     <>
-      <Navbar />
+      <Navbar appearance="dark" />
       <main className="min-h-[70vh] bg-brand-950 px-5 py-20 text-white">
         <div className="mx-auto max-w-lg rounded-2xl border border-gold-500/25 bg-gold-500/10 p-6 sm:p-8">
           <h1 className="text-xl font-extrabold sm:text-2xl">Almost there</h1>

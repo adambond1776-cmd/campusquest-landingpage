@@ -16,7 +16,10 @@ import { PLANS, formatPrice } from '@/lib/pricing';
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-brand-950 text-white pt-14 lg:pt-20 pb-20 lg:pb-28">
+    <section
+      data-cq-hero
+      className="relative overflow-hidden bg-brand-950 text-white pt-14 lg:pt-20 pb-20 lg:pb-28"
+    >
       <div className="absolute inset-0">
         <div className="absolute -top-40 left-1/4 w-[420px] h-[420px] rounded-full bg-brand-600/25 blur-[140px]" />
         <div className="absolute top-24 right-[8%] w-[380px] h-[380px] rounded-full bg-brand-500/20 blur-[130px]" />

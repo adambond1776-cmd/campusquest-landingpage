@@ -1,4 +1,5 @@
 import { signedInEmail } from '@/lib/session';
+import { redirectIfCampusEmailUnverified } from '@/lib/gate';
 import Onboarding from './onboarding-view';
 
 export default async function SignupPage({
@@ -6,14 +7,23 @@ export default async function SignupPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // `finish=1` is set by the auth callback for an account that has a session but
-  // never answered the onboarding questions. Read here rather than in the client
-  // so the first paint already knows which form it is.
   const params = await searchParams;
-  const flag = Array.isArray(params.finish) ? params.finish[0] : params.finish;
-  const finishing = flag === '1';
+  const finishFlag = Array.isArray(params.finish) ? params.finish[0] : params.finish;
+  const verifyFlag = Array.isArray(params.verify) ? params.verify[0] : params.verify;
+  const finishing = finishFlag === '1';
+  const verifying = verifyFlag === '1';
 
-  // The age answer is stored against an address. In the finishing path there is
-  // no email field on the form, so it has to come from the session.
-  return <Onboarding finishing={finishing} sessionEmail={finishing ? await signedInEmail() : null} />;
+  if (finishing) {
+    await redirectIfCampusEmailUnverified();
+  }
+
+  const needsSessionEmail = finishing || verifying;
+
+  return (
+    <Onboarding
+      finishing={finishing}
+      verifying={verifying}
+      sessionEmail={needsSessionEmail ? await signedInEmail() : null}
+    />
+  );
 }

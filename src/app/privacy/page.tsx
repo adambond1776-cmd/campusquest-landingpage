@@ -67,8 +67,9 @@ export default function PrivacyPage() {
       <h3>When you make an account</h3>
       <ul>
         <li>
-          <strong>Your email address.</strong> We sign you in with a magic link, so there is no
-          password to store and nothing for us to leak.
+          <strong>Your email address.</strong> We send a 6-digit verification code to
+          your school email to create the account. Existing accounts can sign in with
+          a login link. There is no password to store.
         </li>
         <li>
           <strong>The activities you save, and the listings you report.</strong> So the

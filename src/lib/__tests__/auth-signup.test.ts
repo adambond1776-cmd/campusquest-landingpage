@@ -9,7 +9,7 @@ vi.mock('@/lib/supabase/client', () => ({
   isSupabaseConfigured: true,
 }));
 
-describe('signUpWithEmail', () => {
+describe('signInWithEmail', () => {
   beforeEach(() => {
     signInWithOtp.mockReset();
     vi.stubGlobal('window', {
@@ -23,17 +23,27 @@ describe('signUpWithEmail', () => {
     vi.unstubAllEnvs();
   });
 
+  it('emails a login link without creating a new account', async () => {
+    signInWithOtp.mockResolvedValue({ error: null });
+    const { signInWithEmail } = await import('@/lib/auth');
+    const result = await signInWithEmail({ email: 'student@uri.edu' });
+
+    expect(result).toEqual({ ok: true, mock: false, alreadyRegistered: false });
+    expect(signInWithOtp).toHaveBeenCalledWith({
+      email: 'student@uri.edu',
+      options: {
+        emailRedirectTo: 'https://www.joincampusquest.com/auth/callback?next=%2Fwelcome',
+        shouldCreateUser: false,
+      },
+    });
+  });
+
   it('returns a retry message when Supabase auth fails, without leaking the provider error', async () => {
     signInWithOtp.mockResolvedValue({
       error: { message: 'Redirect URL not allowed: http://secret.internal' },
     });
-    const { signUpWithEmail } = await import('@/lib/auth');
-    const result = await signUpWithEmail({
-      email: 'student@uri.edu',
-      role: 'student',
-      interests: [],
-      plan: 'free',
-    });
+    const { signInWithEmail } = await import('@/lib/auth');
+    const result = await signInWithEmail({ email: 'student@uri.edu' });
 
     expect(result).toEqual({ ok: false, message: SIGNUP_RETRY_MESSAGE });
   });
@@ -50,13 +60,8 @@ describe('signUpWithEmail', () => {
       isSupabaseConfigured: true,
     }));
 
-    const { signUpWithEmail } = await import('@/lib/auth');
-    const result = await signUpWithEmail({
-      email: 'student@uri.edu',
-      role: 'student',
-      interests: [],
-      plan: 'free',
-    });
+    const { signInWithEmail } = await import('@/lib/auth');
+    const result = await signInWithEmail({ email: 'student@uri.edu' });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('expected failure');
@@ -73,13 +78,8 @@ describe('signUpWithEmail', () => {
       isSupabaseConfigured: true,
     }));
 
-    const { signUpWithEmail } = await import('@/lib/auth');
-    const result = await signUpWithEmail({
-      email: 'student@uri.edu',
-      role: 'student',
-      interests: [],
-      plan: 'free',
-    });
+    const { signInWithEmail } = await import('@/lib/auth');
+    const result = await signInWithEmail({ email: 'student@uri.edu' });
 
     expect(result).toEqual({ ok: false, message: AUTH_UNCONFIGURED_MESSAGE });
     expect(signInWithOtp).not.toHaveBeenCalled();

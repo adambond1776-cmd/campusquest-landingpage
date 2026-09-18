@@ -24,9 +24,8 @@ import {
   Code,
   Plane,
   Star,
-  Mail,
+  UserPlus,
 } from 'lucide-react';
-import CheckInbox from '@/components/CheckInbox';
 import TextField from '@/components/TextField';
 import FormAlert from '@/components/FormAlert';
 import AgeFields, {
@@ -35,8 +34,15 @@ import AgeFields, {
   bracketOf,
   type AgeAnswer,
 } from '@/components/signup/AgeFields';
+import VerifyCode from '@/components/signup/VerifyCode';
 import { recordAge } from '@/app/signup/age-actions';
-import { completeOnboarding, signUpWithEmail, type Plan, type Role } from '@/lib/auth';
+import {
+  resendCampusSignupCode,
+  startCampusSignup,
+  verifyCampusSignupCode,
+} from '@/app/signup/signup-actions';
+import { completeOnboarding, rememberMockSignup, type Plan, type Role } from '@/lib/auth';
+import { maskCampusEmail } from '@/lib/email-verification';
 import { CHECKOUT_LIVE, PLANS, PRICE_LOCK_COPY, STUDENT_PLANS, formatPrice } from '@/lib/pricing';
 import { createSubmitGate, runSignupAttempt } from '@/lib/signup-attempt';
 import { SIGNUP_RETRY_MESSAGE } from '@/lib/signup-diagnostics';
@@ -69,10 +75,10 @@ const planOptions = STUDENT_PLANS.map((plan) => ({
 
 const TOTAL_STEPS = 4;
 
-type SentLink = {
+type PendingVerification = {
   email: string;
+  emailMasked: string;
   mock: boolean;
-  alreadyRegistered: boolean;
 };
 
 /**
@@ -80,19 +86,24 @@ type SentLink = {
  *
  * `finishing` means the visitor already has a session and only the answers are
  * missing, so the email step is dropped and the answers are written straight to
- * the account instead of being carried on a second magic link.
+ * the account.
+ *
+ * `verifying` means they already have a pending account and need to enter the
+ * 6-digit code.
  */
 export default function Onboarding({
   finishing = false,
+  verifying = false,
   sessionEmail = null,
 }: {
   finishing?: boolean;
+  verifying?: boolean;
   sessionEmail?: string | null;
 }) {
   const router = useRouter();
   // Nothing to introduce when the account already exists — start on the first
   // real question instead of the welcome step.
-  const [step, setStep] = useState(finishing ? 1 : 0);
+  const [step, setStep] = useState(verifying && sessionEmail ? 3 : finishing ? 1 : 0);
   const [role, setRole] = useState<Role | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
   const [plan, setPlan] = useState<Plan | null>('free');
@@ -101,7 +112,11 @@ export default function Onboarding({
   const [fieldErrors, setFieldErrors] = useState<{ email?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState<SentLink | null>(null);
+  const [pending, setPending] = useState<PendingVerification | null>(() =>
+    verifying && sessionEmail
+      ? { email: sessionEmail, emailMasked: maskCampusEmail(sessionEmail), mock: false }
+      : null
+  );
   const submitGate = useRef(createSubmitGate());
 
   // Clear a field's complaint as soon as it is being corrected, so stale errors
@@ -183,7 +198,7 @@ export default function Onboarding({
           guardianName: age.guardianName,
           guardianEmail: age.guardianEmail,
         },
-        { recordAge, signUpWithEmail }
+        { startSignup: startCampusSignup }
       );
 
       if (!result.ok) {
@@ -191,10 +206,15 @@ export default function Onboarding({
         return;
       }
 
-      setSent({
+      if (!result.needsVerification) {
+        setFormError('An account with this email already exists. Try logging in instead.');
+        return;
+      }
+
+      setPending({
         email: email.trim(),
+        emailMasked: result.emailMasked,
         mock: result.mock,
-        alreadyRegistered: result.alreadyRegistered,
       });
     } catch {
       setFormError(SIGNUP_RETRY_MESSAGE);
@@ -205,8 +225,29 @@ export default function Onboarding({
   };
 
   const retry = () => {
-    setSent(null);
+    setPending(null);
     setEmail('');
+  };
+
+  const handleVerified = async (code: string) => {
+    if (!pending) return { ok: false as const, message: SIGNUP_RETRY_MESSAGE };
+    const result = await verifyCampusSignupCode({ email: pending.email, code });
+    if (!result.ok) return result;
+    if (pending.mock && role && plan) {
+      rememberMockSignup({ email: pending.email, role, interests, plan });
+    }
+    router.push('/welcome?new=1');
+    return { ok: true as const };
+  };
+
+  const handleResend = async () => {
+    if (!pending) return { ok: false as const, message: SIGNUP_RETRY_MESSAGE };
+    const result = await resendCampusSignupCode(pending.email);
+    if (!result.ok) return result;
+    setPending((current) =>
+      current ? { ...current, emailMasked: result.emailMasked, mock: result.mock } : current
+    );
+    return { ok: true as const };
   };
 
   const canProceed = () => {
@@ -309,12 +350,13 @@ export default function Onboarding({
               />
             )}
             {step === 3 &&
-              (sent ? (
-                <CheckInbox
-                  email={sent.email}
-                  mock={sent.mock}
-                  alreadyRegistered={sent.alreadyRegistered}
-                  continueHref="/welcome?new=1"
+              (pending ? (
+                <VerifyCode
+                  email={pending.email}
+                  emailMasked={pending.emailMasked}
+                  mock={pending.mock}
+                  onVerified={handleVerified}
+                  onResend={handleResend}
                   onUseDifferentEmail={retry}
                 />
               ) : (
@@ -706,7 +748,7 @@ function AccountStep({
           {submitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              {finishing ? 'Saving your answers' : 'Sending your link'}
+              {finishing ? 'Saving your answers' : 'Sending your code'}
             </>
           ) : finishing ? (
             <>
@@ -715,16 +757,17 @@ function AccountStep({
             </>
           ) : (
             <>
-              <Mail className="w-4 h-4" />
-              Email me a sign-up link
+              <UserPlus className="w-4 h-4" />
+              Create account
             </>
           )}
         </button>
 
         {!finishing && (
           <p className="text-xs text-white/40 text-center leading-relaxed">
-            No password to pick. We email you a link that creates your account and
-            signs you in.
+            {isOrg
+              ? "We'll send a 6-digit verification code to your email."
+              : "We'll send a 6-digit verification code to your URI email."}
           </p>
         )}
       </form>

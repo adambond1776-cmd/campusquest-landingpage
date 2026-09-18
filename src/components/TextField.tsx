@@ -9,6 +9,7 @@ type TextFieldProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   autoComplete?: string;
+  inputMode?: 'email' | 'numeric' | 'text';
   error?: string | null;
   disabled?: boolean;
 };
@@ -20,6 +21,7 @@ export default function TextField({
   onChange,
   placeholder,
   autoComplete,
+  inputMode,
   error,
   disabled,
 }: TextFieldProps) {
@@ -38,6 +40,7 @@ export default function TextField({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         disabled={disabled}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}

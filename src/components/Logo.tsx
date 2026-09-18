@@ -33,19 +33,37 @@ export default function Logo({ size = 46, className = '' }: LogoProps) {
 export function BrandLockup({
   size = 46,
   showTagline = true,
+  onDark = true,
 }: {
   size?: number;
   showTagline?: boolean;
+  /** Wordmark colors for a navy bar (`true`) vs a white bar (`false`). */
+  onDark?: boolean;
 }) {
   return (
     <span className="flex items-center gap-3 min-w-0">
       <Logo size={size} />
       <span className="flex min-w-0 flex-col justify-center">
-        <span className="font-extrabold text-[1.15rem] sm:text-[1.25rem] leading-none tracking-tight text-white">
-          Campus<span className="text-brand-400">Quest</span>
+        <span
+          className={`font-extrabold text-[1.15rem] sm:text-[1.25rem] leading-none tracking-tight motion-safe:transition-colors motion-safe:duration-300 ${
+            onDark ? 'text-white' : 'text-ink'
+          }`}
+        >
+          Campus
+          <span
+            className={`motion-safe:transition-colors motion-safe:duration-300 ${
+              onDark ? 'text-brand-400' : 'text-brand-500'
+            }`}
+          >
+            Quest
+          </span>
         </span>
         {showTagline ? (
-          <span className="mt-1 hidden text-[8px] font-semibold uppercase tracking-[0.22em] text-white/45 sm:block">
+          <span
+            className={`mt-1 hidden text-[8px] font-semibold uppercase tracking-[0.22em] sm:block motion-safe:transition-colors motion-safe:duration-300 ${
+              onDark ? 'text-white/45' : 'text-ink/40'
+            }`}
+          >
             Discover • Connect • Belong
           </span>
         ) : null}

@@ -1,5 +1,5 @@
 import { signedInUser } from '@/lib/session';
-import { requireGeniusMiningAccess } from '@/lib/gate';
+import { redirectIfCampusEmailUnverified, requireGeniusMiningAccess } from '@/lib/gate';
 import { loadCurrentRecord } from '@/lib/gm/load';
 import { resolveEntitlement } from '@hiddengeniuslabs/genius-mining';
 import WelcomeView, { type GeniusMiningAccess } from './welcome-view';
@@ -41,6 +41,7 @@ export default async function WelcomePage({
   const params = await searchParams;
   const flag = Array.isArray(params.new) ? params.new[0] : params.new;
   const user = await signedInUser();
+  await redirectIfCampusEmailUnverified();
 
   return (
     <WelcomeView

@@ -1,4 +1,4 @@
-import { AUTH_UNCONFIGURED_MESSAGE, STORAGE_UNCONFIGURED_MESSAGE } from '@/lib/runtime';
+import { AUTH_UNCONFIGURED_MESSAGE } from '@/lib/runtime';
 import { TimeoutError } from '@/lib/timeout';
 
 export type SignupFailureKind =
@@ -11,7 +11,10 @@ export type SignupFailureKind =
   | 'unexpected';
 
 export const SIGNUP_RETRY_MESSAGE =
-  "We couldn't send your sign-in link. Please try again.";
+  "We couldn't complete that. Please try again.";
+
+export const SIGNUP_CODE_RETRY_MESSAGE =
+  "We couldn't send your code. Please try again.";
 
 export function classifySignupError(error: unknown): SignupFailureKind {
   if (error instanceof TimeoutError) return 'timeout';
@@ -21,7 +24,12 @@ export function classifySignupError(error: unknown): SignupFailureKind {
   if (message.includes('Could not save age') || message.includes('Could not save the guardian')) {
     return 'database';
   }
+  if (message.includes('Could not save verification') || message.includes('Could not read verification')) {
+    return 'database';
+  }
+  if (message.includes('RESEND_API_KEY') || message.includes('Resend rejected')) return 'email';
   if (message.includes('sign-in is temporarily unavailable')) return 'configuration';
+  if (message.includes('EMAIL_VERIFICATION_SECRET')) return 'configuration';
   return 'unexpected';
 }
 
@@ -32,7 +40,6 @@ export function userFacingSignupMessage(kind: SignupFailureKind): string {
     case 'configuration':
       return AUTH_UNCONFIGURED_MESSAGE;
     case 'database':
-      return STORAGE_UNCONFIGURED_MESSAGE;
     case 'email':
     case 'supabase_auth':
     case 'timeout':
@@ -56,4 +63,4 @@ export function logSignupSuccess(stage: string): void {
   console.info('[signup]', { stage, outcome: 'ok' });
 }
 
-export { AUTH_UNCONFIGURED_MESSAGE, STORAGE_UNCONFIGURED_MESSAGE };
+export { AUTH_UNCONFIGURED_MESSAGE };

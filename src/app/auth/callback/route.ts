@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { needsCampusEmailVerification } from '@/lib/email-verification';
 import { createClient } from '@/lib/supabase/server';
 
 const DEFAULT_NEXT = '/welcome';
 const ERROR_PATH = '/auth/auth-code-error';
 const FINISH_ONBOARDING_PATH = '/signup?finish=1';
+const VERIFY_EMAIL_PATH = '/signup?verify=1';
 
 /**
  * Only same-origin relative paths are honoured, so a tampered link cannot turn
@@ -32,10 +34,14 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return failure('link');
 
-  // A magic link creates the account the first time it is used, so an unknown
-  // address typed into the login form lands here signed in but with no role,
-  // plan or interests. Those accounts finish onboarding instead of dropping
-  // onto a welcome page that has nothing to tell them.
+  const metadata = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+  if (needsCampusEmailVerification(metadata)) {
+    return NextResponse.redirect(new URL(VERIFY_EMAIL_PATH, origin));
+  }
+
+  // Login of an address that never finished onboarding lands here signed in
+  // but with no role, plan or interests. Those accounts finish onboarding
+  // instead of dropping onto a welcome page that has nothing to tell them.
   const role = data.user?.user_metadata?.role;
   if (role !== 'student' && role !== 'organization') {
     return NextResponse.redirect(new URL(FINISH_ONBOARDING_PATH, origin));

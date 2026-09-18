@@ -1,8 +1,32 @@
 import { ageStore } from '@/lib/age-store';
 import { allows, type AccessDecision, type AgeRecord, type Capability } from '@/lib/age';
+import { needsCampusEmailVerification } from '@/lib/email-verification';
 import { supabaseConfigured } from '@/lib/env';
 import { isProductionRuntime } from '@/lib/runtime';
 import { signedInEmail } from '@/lib/session';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+
+export const VERIFY_CAMPUS_EMAIL_PATH = '/signup?verify=1';
+
+/**
+ * Pending 6-digit signups must not use welcome, settings, or Genius Mining
+ * until the code has been verified. Grandfathered accounts (no pending flag)
+ * pass through.
+ */
+export async function redirectIfCampusEmailUnverified(): Promise<void> {
+  const supabase = await createClient();
+  if (!supabase) return;
+
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return;
+
+  const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+  if (needsCampusEmailVerification(metadata)) {
+    redirect(VERIFY_CAMPUS_EMAIL_PATH);
+  }
+}
 
 export type GateResult = AccessDecision & {
   /** Null when nobody is signed in. */
@@ -76,5 +100,6 @@ export async function requireGeniusMiningAccess(): Promise<GateResult> {
     return { allowed: true, reason: '', record: null, signedIn: false };
   }
 
+  await redirectIfCampusEmailUnverified();
   return gate('genius_mining');
 }

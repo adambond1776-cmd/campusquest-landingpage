@@ -20,13 +20,6 @@ export type SignInInput = {
   redirectTo?: string;
 };
 
-export type SignUpInput = {
-  email: string;
-  role: Role;
-  interests: string[];
-  plan: Plan;
-};
-
 export type AuthResult =
   | {
       ok: true;
@@ -56,7 +49,6 @@ const SESSION_KEY = 'campusquest.session';
 const MOCK_LATENCY_MS = 700;
 
 const SIGN_IN_REDIRECT = '/welcome';
-const SIGN_UP_REDIRECT = '/welcome?new=1';
 
 const ROLES: Role[] = ['student', 'organization'];
 const PLANS: Plan[] = ['free', 'basic', 'premium', 'club'];
@@ -144,23 +136,15 @@ function readAccounts(): StoredAccount[] {
   return Array.isArray(parsed) ? (parsed as StoredAccount[]) : [];
 }
 
-/**
- * Stands in for the whole email round-trip: remembers the address, records a
- * session so `getCurrentUser()` has something to return, and reports whether
- * the address was already known so the UI can say so.
- */
-async function mockSendLink(
+function rememberMockAccount(
   email: string,
   details: { role?: Role; interests?: string[]; plan?: Plan } = {}
-): Promise<AuthResult> {
-  await wait(MOCK_LATENCY_MS);
-
+): StoredSession {
   const normalized = normalizeEmail(email);
   const accounts = readAccounts();
   const existing = accounts.find((account) => account.email === normalized);
 
   if (existing) {
-    // Only fill gaps — a login must not silently rewrite the signup answers.
     existing.role = details.role ?? existing.role;
     existing.interests = details.interests ?? existing.interests;
     existing.plan = details.plan ?? existing.plan;
@@ -182,8 +166,33 @@ async function mockSendLink(
     plan: account.plan,
   };
   writeJson(SESSION_KEY, session);
+  return session;
+}
 
-  return { ok: true, mock: true, alreadyRegistered: Boolean(existing) };
+/**
+ * Stands in for the whole email round-trip: remembers the address, records a
+ * session so `getCurrentUser()` has something to return, and reports whether
+ * the address was already known so the UI can say so.
+ */
+async function mockSendLink(
+  email: string,
+  details: { role?: Role; interests?: string[]; plan?: Plan } = {}
+): Promise<AuthResult> {
+  await wait(MOCK_LATENCY_MS);
+  const existing = readAccounts().some((account) => account.email === normalizeEmail(email));
+  rememberMockAccount(email, details);
+  return { ok: true, mock: true, alreadyRegistered: existing };
+}
+
+/** Local-dev stand-in after a 6-digit code is accepted without Supabase. */
+export function rememberMockSignup(details: {
+  email: string;
+  role: Role;
+  interests: string[];
+  plan: Plan;
+}): void {
+  if (isProductionRuntime()) return;
+  rememberMockAccount(details.email, details);
 }
 
 async function mockCompleteOnboarding(details: OnboardingInput): Promise<OnboardingResult> {
@@ -224,8 +233,8 @@ function readMockSession(): CurrentUser | null {
 /* ---------- Public API ---------- */
 
 /**
- * Emails a one-time login link. There is no password to check, so a link is
- * sent whether or not the address is already on file.
+ * Emails a one-time login link for an existing account. New accounts are
+ * created through the 6-digit signup flow, not from this form.
  */
 function mockAuthOrFail(
   run: () => Promise<AuthResult>
@@ -253,7 +262,7 @@ export async function signInWithEmail({
     const { error } = await withTimeout(
       supabase.auth.signInWithOtp({
         email: normalizeEmail(email),
-        options: { emailRedirectTo },
+        options: { emailRedirectTo, shouldCreateUser: false },
       }),
       SIGNUP_NETWORK_TIMEOUT_MS,
       'sign_in_otp'
@@ -269,55 +278,6 @@ export async function signInWithEmail({
   } catch (error) {
     const kind = classifySignupError(error);
     logSignupFailure({ stage: 'sign_in', kind });
-    return { ok: false, message: userFacingSignupMessage(kind) };
-  }
-}
-
-/**
- * Emails the same one-time link, carrying the onboarding answers along so they
- * land in the user's metadata when the account is created.
- */
-export async function signUpWithEmail({
-  email,
-  role,
-  interests,
-  plan,
-}: SignUpInput): Promise<AuthResult> {
-  try {
-    const supabase = createClient();
-    if (!supabase) {
-      return mockAuthOrFail(() => mockSendLink(email, { role, interests, plan }));
-    }
-
-    const emailRedirectTo = callbackUrl(SIGN_UP_REDIRECT);
-    if (!emailRedirectTo) {
-      logSignupFailure({ stage: 'sign_up', kind: 'configuration' });
-      return { ok: false, message: AUTH_UNCONFIGURED_MESSAGE };
-    }
-
-    const { error } = await withTimeout(
-      supabase.auth.signInWithOtp({
-        email: normalizeEmail(email),
-        options: {
-          emailRedirectTo,
-          shouldCreateUser: true,
-          data: { role, interests, plan },
-        },
-      }),
-      SIGNUP_NETWORK_TIMEOUT_MS,
-      'sign_up_otp'
-    );
-
-    if (error) {
-      logSignupFailure({ stage: 'sign_up', kind: 'supabase_auth' });
-      return { ok: false, message: SIGNUP_RETRY_MESSAGE };
-    }
-
-    logSignupSuccess('sign_up');
-    return { ok: true, mock: false, alreadyRegistered: false };
-  } catch (error) {
-    const kind = classifySignupError(error);
-    logSignupFailure({ stage: 'sign_up', kind });
     return { ok: false, message: userFacingSignupMessage(kind) };
   }
 }

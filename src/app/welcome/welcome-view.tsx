@@ -54,8 +54,8 @@ export default function WelcomeView({
     ? [
         {
           icon: Mail,
-          title: 'Confirm your email',
-          body: 'We sent a confirmation link. Click it to activate your club page.',
+          title: 'Your email is verified',
+          body: 'You entered the 6-digit code we sent to your address, so we know it is really you.',
         },
         {
           icon: Sparkles,
@@ -71,8 +71,8 @@ export default function WelcomeView({
     : [
         {
           icon: Mail,
-          title: 'Confirm your email',
-          body: 'We sent a confirmation link so we know it is really you.',
+          title: 'Your email is verified',
+          body: 'You entered the 6-digit code we sent to your URI email, so we know it is really you.',
         },
         {
           icon: Sparkles,

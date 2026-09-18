@@ -29,91 +29,80 @@ describe('createSubmitGate', () => {
 });
 
 describe('runSignupAttempt', () => {
-  it('records age then sends the magic link on success', async () => {
-    const recordAge = vi.fn().mockResolvedValue({ ok: true, bracket: 'adult' });
-    const signUpWithEmail = vi
-      .fn()
-      .mockResolvedValue({ ok: true, mock: false, alreadyRegistered: false });
+  it('starts signup and returns the verification payload on success', async () => {
+    const startSignup = vi.fn().mockResolvedValue({
+      ok: true,
+      mock: false,
+      alreadyRegistered: false,
+      needsVerification: true,
+      emailMasked: 's••••••@uri.edu',
+    });
 
-    const result = await runSignupAttempt(baseInput, { recordAge, signUpWithEmail });
+    const result = await runSignupAttempt(baseInput, { startSignup });
 
-    expect(result).toEqual({ ok: true, mock: false, alreadyRegistered: false });
-    expect(recordAge).toHaveBeenCalledOnce();
-    expect(signUpWithEmail).toHaveBeenCalledOnce();
-    expect(signUpWithEmail.mock.invocationCallOrder[0]).toBeGreaterThan(
-      recordAge.mock.invocationCallOrder[0]
-    );
+    expect(result).toEqual({
+      ok: true,
+      mock: false,
+      alreadyRegistered: false,
+      needsVerification: true,
+      emailMasked: 's••••••@uri.edu',
+    });
+    expect(startSignup).toHaveBeenCalledOnce();
+    expect(startSignup).toHaveBeenCalledWith(baseInput);
   });
 
-  it('does not send a magic link when age recording fails', async () => {
-    const recordAge = vi.fn().mockResolvedValue({
+  it('returns a start-signup failure without claiming a code was sent', async () => {
+    const startSignup = vi.fn().mockResolvedValue({
       ok: false,
-      message: 'CampusQuest is for students aged 16 and over.',
+      message: "We couldn't send your code. Please try again.",
     });
-    const signUpWithEmail = vi.fn();
 
-    const result = await runSignupAttempt(baseInput, { recordAge, signUpWithEmail });
+    const result = await runSignupAttempt(baseInput, { startSignup });
 
     expect(result).toEqual({
       ok: false,
-      message: 'CampusQuest is for students aged 16 and over.',
+      message: "We couldn't send your code. Please try again.",
     });
-    expect(signUpWithEmail).not.toHaveBeenCalled();
   });
 
-  it('turns a thrown age-store failure into an error result instead of hanging', async () => {
-    const recordAge = vi.fn().mockRejectedValue(
-      new Error('Could not save age: relation "cq_age_records" does not exist')
+  it('turns a thrown start-signup failure into an error result', async () => {
+    const startSignup = vi.fn().mockRejectedValue(
+      new Error('Could not save verification challenge: relation does not exist')
     );
-    const signUpWithEmail = vi.fn();
 
-    const result = await runSignupAttempt(baseInput, { recordAge, signUpWithEmail });
+    const result = await runSignupAttempt(baseInput, { startSignup });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('expected failure');
-    expect(result.message).not.toMatch(/cq_age_records|relation/);
-    expect(signUpWithEmail).not.toHaveBeenCalled();
+    expect(result.message).not.toMatch(/relation|verification challenge/i);
   });
 
-  it('times out a hung age write and returns a retry message', async () => {
+  it('times out a hung start-signup request', async () => {
     const result = await runSignupAttempt(baseInput, {
-      recordAge: never,
-      signUpWithEmail: vi.fn(),
+      startSignup: never,
       timeoutMs: 20,
     });
 
-    expect(result).toEqual({ ok: false, message: SIGNUP_RETRY_MESSAGE });
-  });
-
-  it('times out a hung magic-link request after age succeeds', async () => {
-    const recordAge = vi.fn().mockResolvedValue({ ok: true, bracket: 'adult' });
-    const result = await runSignupAttempt(baseInput, {
-      recordAge,
-      signUpWithEmail: never,
-      timeoutMs: 20,
-    });
-
-    expect(recordAge).toHaveBeenCalledOnce();
     expect(result).toEqual({ ok: false, message: SIGNUP_RETRY_MESSAGE });
   });
 
   it('lets the submit gate block a second attempt until the first finishes', () => {
     const gate = createSubmitGate();
-    const signUpWithEmail = vi.fn();
+    const startSignup = vi.fn();
 
     if (gate.tryStart()) {
-      signUpWithEmail();
+      startSignup();
     }
     if (gate.tryStart()) {
-      signUpWithEmail();
+      startSignup();
     }
 
-    expect(signUpWithEmail).toHaveBeenCalledTimes(1);
+    expect(startSignup).toHaveBeenCalledTimes(1);
     gate.finish();
     if (gate.tryStart()) {
-      signUpWithEmail();
+      startSignup();
     }
-    expect(signUpWithEmail).toHaveBeenCalledTimes(2);
+    expect(startSignup).toHaveBeenCalledTimes(2);
   });
 });
 

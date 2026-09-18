@@ -17,16 +17,17 @@ import {
   logSignupFailure,
   logSignupSuccess,
   userFacingSignupMessage,
+  type SignupFailureKind,
 } from '@/lib/signup-diagnostics';
 import { SIGNUP_NETWORK_TIMEOUT_MS, withTimeout } from '@/lib/timeout';
 
 export type AgeResult =
   | { ok: true; bracket: 'adult' }
   | { ok: true; bracket: 'minor'; guardianEmailed: boolean }
-  | { ok: false; message: string };
+  | { ok: false; message: string; kind?: SignupFailureKind };
 
 /**
- * Records what a student told us about their age, before the magic link goes out.
+ * Records what a student told us about their age, before the verification code goes out.
  *
  * Written at submit time rather than after the account exists, because the store
  * is keyed by email address and the gate has to be in place the first time they
@@ -46,7 +47,7 @@ export async function recordAge(input: {
   } catch (error) {
     const kind = classifySignupError(error);
     logSignupFailure({ stage: 'record_age', kind });
-    return { ok: false, message: userFacingSignupMessage(kind) };
+    return { ok: false, message: userFacingSignupMessage(kind), kind };
   }
 }
 
@@ -66,6 +67,7 @@ async function recordAgeUnchecked(input: {
     return {
       ok: false,
       message: `CampusQuest is for students aged ${MINIMUM_AGE} and over.`,
+      kind: 'validation',
     };
   }
 
@@ -82,7 +84,7 @@ async function recordAgeUnchecked(input: {
 
   if (!guardianName || !guardianEmail) {
     logSignupFailure({ stage: 'record_age', kind: 'validation' });
-    return { ok: false, message: 'We need a parent or guardian to contact.' };
+    return { ok: false, message: 'We need a parent or guardian to contact.', kind: 'validation' };
   }
 
   if (guardianEmail === email) {
@@ -90,6 +92,7 @@ async function recordAgeUnchecked(input: {
     return {
       ok: false,
       message: 'The guardian address has to be different from your own.',
+      kind: 'validation',
     };
   }
 
@@ -99,6 +102,7 @@ async function recordAgeUnchecked(input: {
       ok: false,
       message:
         'We could not email a parent or guardian right now. Please try again in a few minutes.',
+      kind: 'configuration',
     };
   }
 
@@ -109,6 +113,7 @@ async function recordAgeUnchecked(input: {
       ok: false,
       message:
         'We could not email a parent or guardian right now. Please try again in a few minutes.',
+      kind: 'configuration',
     };
   }
 

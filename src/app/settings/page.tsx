@@ -8,6 +8,7 @@ import DeleteAccount from '@/components/settings/DeleteAccount';
 import LogoutButton from '@/components/LogoutButton';
 import { ageStore } from '@/lib/age-store';
 import { guardianConsentActive } from '@/lib/age';
+import { redirectIfCampusEmailUnverified } from '@/lib/gate';
 import { signedInUser } from '@/lib/session';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { PLANS } from '@/lib/pricing';
@@ -22,6 +23,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const user = await signedInUser();
+  await redirectIfCampusEmailUnverified();
 
   // With no Supabase project the session lives in localStorage and cannot be
   // read here, so there is nothing this page can honestly show.
@@ -32,7 +34,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <Navbar />
+      <Navbar appearance="dark" />
       <main className="min-h-screen bg-brand-950 px-5 py-14 text-white sm:py-20">
         <div className="mx-auto w-full max-w-3xl">
           <h1 className="text-3xl font-extrabold sm:text-4xl">Your account</h1>
